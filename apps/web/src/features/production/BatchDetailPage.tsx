@@ -41,13 +41,6 @@ interface BatchDetail {
   outputs: BatchOutput[];
 }
 
-const STATUS_COLORS: Record<string, 'warning' | 'secondary' | 'success' | 'destructive'> = {
-  LOADING: 'warning',
-  FIRING: 'secondary',
-  COOLING: 'warning',
-  COMPLETED: 'success',
-  FAILED: 'destructive',
-};
 const STATUSES = ['LOADING', 'FIRING', 'COOLING', 'COMPLETED', 'FAILED'];
 
 const outputSchema = z.object({
