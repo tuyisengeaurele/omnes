@@ -1,0 +1,608 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── AUTH & USERS ──────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  HR_OFFICER
+  PRODUCTION_SUPERVISOR
+  SALES_OFFICER
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole  @default(VIEWER)
+  isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  burned    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  action    String
+  entity    String
+  entityId  String?
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+// ─── HR MODULE ────────────────────────────────────────────────
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  TERMINATED
+}
+
+enum ContractType {
+  PERMANENT
+  CONTRACT
+  CASUAL
+  INTERN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  employees   Employee[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Employee {
+  id                String         @id @default(cuid())
+  employeeNumber    String         @unique
+  firstName         String
+  lastName          String
+  gender            Gender
+  dateOfBirth       DateTime
+  nationalId        String         @unique
+  phone             String
+  email             String?
+  address           String
+  departmentId      String
+  department        Department     @relation(fields: [departmentId], references: [id])
+  position          String
+  contractType      ContractType
+  startDate         DateTime
+  endDate           DateTime?
+  status            EmployeeStatus @default(ACTIVE)
+  bankName          String
+  bankAccountNumber String
+  salary            Decimal        @db.Decimal(15, 2)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  payrollEntries PayrollEntry[]
+  attendances    Attendance[]
+  leaveRequests  LeaveRequest[]
+}
+
+model Attendance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  date        DateTime  @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  hoursWorked Decimal?  @db.Decimal(5, 2)
+  notes       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([employeeId, date])
+}
+
+enum LeaveType {
+  ANNUAL
+  SICK
+  MATERNITY
+  PATERNITY
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id         String      @id @default(cuid())
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+  leaveType  LeaveType
+  startDate  DateTime    @db.Date
+  endDate    DateTime    @db.Date
+  totalDays  Int
+  reason     String
+  status     LeaveStatus @default(PENDING)
+  approvedBy String?
+  approvedAt DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+}
+
+model PayrollEntry {
+  id           String     @id @default(cuid())
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id])
+  month        Int
+  year         Int
+  grossSalary  Decimal    @db.Decimal(15, 2)
+  netSalary    Decimal    @db.Decimal(15, 2)
+  notes        String?
+  paid         Boolean    @default(false)
+  paidAt       DateTime?
+  payrollRunId String
+  payrollRun   PayrollRun @relation(fields: [payrollRunId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([employeeId, month, year])
+}
+
+model PayrollRun {
+  id          String         @id @default(cuid())
+  month       Int
+  year        Int
+  totalAmount Decimal        @db.Decimal(15, 2)
+  status      String         @default("DRAFT")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  entries     PayrollEntry[]
+
+  @@unique([month, year])
+}
+
+// ─── PRODUCTION MODULE ────────────────────────────────────────
+
+enum BatchStatus {
+  PLANNED
+  IN_PROGRESS
+  FIRED
+  COMPLETED
+  REJECTED
+}
+
+model ProductType {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  unitPrice   Decimal       @db.Decimal(15, 2)
+  unit        String        @default("piece")
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  batchOutputs BatchOutput[]
+  saleItems    SaleItem[]
+}
+
+model ProductionBatch {
+  id               String        @id @default(cuid())
+  batchNumber      String        @unique
+  kilnId           String
+  kiln             Kiln          @relation(fields: [kilnId], references: [id])
+  plannedStartDate DateTime      @db.Date
+  actualStartDate  DateTime?     @db.Date
+  firingDate       DateTime?     @db.Date
+  completionDate   DateTime?     @db.Date
+  status           BatchStatus   @default(PLANNED)
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  outputs        BatchOutput[]
+  materialUsages MaterialUsage[]
+}
+
+model BatchOutput {
+  id        String          @id @default(cuid())
+  batchId   String
+  batch     ProductionBatch @relation(fields: [batchId], references: [id])
+  productId String
+  product   ProductType     @relation(fields: [productId], references: [id])
+  planned   Int
+  produced  Int             @default(0)
+  rejected  Int             @default(0)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model Kiln {
+  id       String            @id @default(cuid())
+  name     String            @unique
+  location String
+  capacity Int
+  isActive Boolean           @default(true)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  batches          ProductionBatch[]
+  maintenanceLogs  MaintenanceLog[]
+}
+
+// ─── INVENTORY MODULE ─────────────────────────────────────────
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+model RawMaterial {
+  id           String          @id @default(cuid())
+  code         String          @unique
+  name         String
+  unit         String
+  currentStock Decimal         @db.Decimal(15, 3)
+  reorderLevel Decimal         @db.Decimal(15, 3)
+  unitCost     Decimal         @db.Decimal(15, 2)
+  description  String?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  movements     StockMovement[]
+  usages        MaterialUsage[]
+  purchaseItems PurchaseItem[]
+}
+
+model StockMovement {
+  id         String       @id @default(cuid())
+  materialId String
+  material   RawMaterial  @relation(fields: [materialId], references: [id])
+  type       MovementType
+  quantity   Decimal      @db.Decimal(15, 3)
+  reference  String?
+  notes      String?
+  createdAt  DateTime     @default(now())
+}
+
+model MaterialUsage {
+  id         String          @id @default(cuid())
+  batchId    String
+  batch      ProductionBatch @relation(fields: [batchId], references: [id])
+  materialId String
+  material   RawMaterial     @relation(fields: [materialId], references: [id])
+  quantity   Decimal         @db.Decimal(15, 3)
+  createdAt  DateTime        @default(now())
+}
+
+// ─── PROCUREMENT MODULE ───────────────────────────────────────
+
+enum POStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  RECEIVED
+  CANCELLED
+}
+
+model Supplier {
+  id            String          @id @default(cuid())
+  code          String          @unique
+  name          String
+  contactPerson String?
+  phone         String
+  email         String?
+  address       String
+  tinNumber     String?
+  bankName      String?
+  bankAccount   String?
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+model PurchaseOrder {
+  id           String            @id @default(cuid())
+  poNumber     String            @unique
+  supplierId   String
+  supplier     Supplier          @relation(fields: [supplierId], references: [id])
+  orderDate    DateTime          @db.Date
+  expectedDate DateTime?         @db.Date
+  receivedDate DateTime?         @db.Date
+  status       POStatus          @default(DRAFT)
+  totalAmount  Decimal           @db.Decimal(15, 2)
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  items    PurchaseItem[]
+  payments SupplierPayment[]
+}
+
+model PurchaseItem {
+  id         String        @id @default(cuid())
+  poId       String
+  po         PurchaseOrder @relation(fields: [poId], references: [id])
+  materialId String
+  material   RawMaterial   @relation(fields: [materialId], references: [id])
+  quantity   Decimal       @db.Decimal(15, 3)
+  unitPrice  Decimal       @db.Decimal(15, 2)
+  totalPrice Decimal       @db.Decimal(15, 2)
+  received   Decimal       @db.Decimal(15, 3) @default(0)
+}
+
+model SupplierPayment {
+  id          String        @id @default(cuid())
+  poId        String
+  po          PurchaseOrder @relation(fields: [poId], references: [id])
+  amount      Decimal       @db.Decimal(15, 2)
+  paymentDate DateTime      @db.Date
+  method      String
+  reference   String?
+  notes       String?
+  createdAt   DateTime      @default(now())
+}
+
+// ─── SALES MODULE ─────────────────────────────────────────────
+
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum SaleStatus {
+  PROFORMA
+  CONFIRMED
+  DELIVERED
+  INVOICED
+  PAID
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+}
+
+model Customer {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  type          CustomerType
+  name          String
+  companyName   String?
+  tinNumber     String?
+  contactPerson String?
+  phone         String
+  email         String?
+  address       String
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  sales Sale[]
+}
+
+model Sale {
+  id             String        @id @default(cuid())
+  invoiceNumber  String        @unique
+  proformaNumber String?       @unique
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  saleDate       DateTime      @db.Date
+  deliveryDate   DateTime?     @db.Date
+  status         SaleStatus    @default(PROFORMA)
+  paymentStatus  PaymentStatus @default(UNPAID)
+  subtotal       Decimal       @db.Decimal(15, 2)
+  vatAmount      Decimal       @db.Decimal(15, 2) @default(0)
+  totalAmount    Decimal       @db.Decimal(15, 2)
+  amountPaid     Decimal       @db.Decimal(15, 2) @default(0)
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items    SaleItem[]
+  payments SalePayment[]
+}
+
+model SaleItem {
+  id         String      @id @default(cuid())
+  saleId     String
+  sale       Sale        @relation(fields: [saleId], references: [id])
+  productId  String
+  product    ProductType @relation(fields: [productId], references: [id])
+  quantity   Decimal     @db.Decimal(15, 2)
+  unitPrice  Decimal     @db.Decimal(15, 2)
+  totalPrice Decimal     @db.Decimal(15, 2)
+}
+
+model SalePayment {
+  id          String   @id @default(cuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id])
+  amount      Decimal  @db.Decimal(15, 2)
+  paymentDate DateTime @db.Date
+  method      String
+  reference   String?
+  notes       String?
+  createdAt   DateTime @default(now())
+}
+
+// ─── FINANCE MODULE ───────────────────────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model Account {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  name        String
+  type        AccountType
+  description String?
+  isActive    Boolean     @default(true)
+  parentId    String?
+  parent      Account?    @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children    Account[]   @relation("AccountHierarchy")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  journalLines JournalLine[]
+}
+
+model JournalEntry {
+  id          String        @id @default(cuid())
+  reference   String        @unique
+  date        DateTime      @db.Date
+  description String
+  totalDebit  Decimal       @db.Decimal(15, 2)
+  totalCredit Decimal       @db.Decimal(15, 2)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  lines JournalLine[]
+}
+
+model JournalLine {
+  id             String       @id @default(cuid())
+  journalEntryId String
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  accountId      String
+  account        Account      @relation(fields: [accountId], references: [id])
+  debit          Decimal      @db.Decimal(15, 2) @default(0)
+  credit         Decimal      @db.Decimal(15, 2) @default(0)
+  description    String?
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  reference   String   @unique
+  date        DateTime @db.Date
+  category    String
+  description String
+  amount      Decimal  @db.Decimal(15, 2)
+  paidBy      String
+  receipt     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── ASSETS MODULE ────────────────────────────────────────────
+
+enum AssetStatus {
+  ACTIVE
+  UNDER_MAINTENANCE
+  DISPOSED
+  IDLE
+}
+
+enum DepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+}
+
+model FixedAsset {
+  id                 String             @id @default(cuid())
+  assetNumber        String             @unique
+  name               String
+  category           String
+  description        String?
+  purchaseDate       DateTime           @db.Date
+  purchaseCost       Decimal            @db.Decimal(15, 2)
+  salvageValue       Decimal            @db.Decimal(15, 2)
+  usefulLifeYears    Int
+  depreciationMethod DepreciationMethod @default(STRAIGHT_LINE)
+  currentValue       Decimal            @db.Decimal(15, 2)
+  location           String
+  status             AssetStatus        @default(ACTIVE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  maintenanceLogs MaintenanceLog[]
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model MaintenanceLog {
+  id          String            @id @default(cuid())
+  assetId     String?
+  asset       FixedAsset?       @relation(fields: [assetId], references: [id])
+  kilnId      String?
+  kiln        Kiln?             @relation(fields: [kilnId], references: [id])
+  title       String
+  description String
+  scheduledAt DateTime
+  completedAt DateTime?
+  cost        Decimal?          @db.Decimal(15, 2)
+  status      MaintenanceStatus @default(SCHEDULED)
+  technician  String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+// ─── SYSTEM ───────────────────────────────────────────────────
+
+model CompanySettings {
+  id                 String   @id @default(cuid())
+  name               String
+  tinNumber          String?
+  phone              String?
+  email              String?
+  address            String?
+  website            String?
+  logoPath           String?
+  currency           String   @default("RWF")
+  vatRate            Decimal  @db.Decimal(5, 2) @default(18)
+  financialYearStart Int      @default(1)
+  updatedAt          DateTime @updatedAt
+}
