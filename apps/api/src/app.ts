@@ -33,6 +33,7 @@ import { router as salesRouter } from './modules/sales/router';
 import { router as financeRouter } from './modules/finance/router';
 import { router as assetsRouter } from './modules/assets/router';
 import { router as reportsRouter } from './modules/reports/router';
+import { router as settingsRouter } from './modules/settings/router';
 
 app.use('/api', publicRouter);
 app.use('/api/auth', authRouter);
@@ -45,6 +46,7 @@ app.use('/api', salesRouter);
 app.use('/api', financeRouter);
 app.use('/api', assetsRouter);
 app.use('/api', reportsRouter);
+app.use('/api', settingsRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
