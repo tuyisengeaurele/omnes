@@ -28,6 +28,9 @@
     "winston-daily-rotate-file": "^5.0.0",
     "zod": "^3.23.8"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.17",
