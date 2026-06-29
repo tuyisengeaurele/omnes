@@ -1,6 +1,5 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { api } from '@/lib/axios';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +11,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { ArrowLeft, CheckCircle, Download } from 'lucide-react';
+import { CheckCircle, Download } from 'lucide-react';
 
 const createSchema = z.object({
   periodStart: z.string().min(1),
