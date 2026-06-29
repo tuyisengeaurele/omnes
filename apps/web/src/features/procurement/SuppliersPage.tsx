@@ -75,9 +75,9 @@ export default function SuppliersPage() {
 
   const columns: Column<Supplier>[] = [
     { key: 'name', header: 'Supplier' },
-    { key: 'contactPerson', header: 'Contact', render: (r) => r.contactPerson ?? '—' },
+    { key: 'contactPerson', header: 'Contact', render: (r) => r.contactPerson ?? '-' },
     { key: 'phone', header: 'Phone' },
-    { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
+    { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
     { key: 'isActive', header: 'Status', render: (r) => <Badge variant={r.isActive ? 'success' : 'secondary'}>{r.isActive ? 'Active' : 'Inactive'}</Badge> },
   ];
 

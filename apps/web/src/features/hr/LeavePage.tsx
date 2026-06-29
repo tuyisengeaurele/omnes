@@ -199,7 +199,7 @@ export default function LeavePage() {
         open={!!approveId}
         onOpenChange={(o) => !o && setApproveId(null)}
         title="Approve Leave"
-        description="This will approve the leave request."
+        description="Approve this leave request?"
         confirmLabel="Approve"
         onConfirm={() => approveId && approveMutation.mutate(approveId)}
         isLoading={approveMutation.isPending}
@@ -208,7 +208,7 @@ export default function LeavePage() {
         open={!!rejectId}
         onOpenChange={(o) => !o && setRejectId(null)}
         title="Reject Leave"
-        description="This will reject the leave request."
+        description="Reject this leave request?"
         confirmLabel="Reject"
         onConfirm={() => rejectId && rejectMutation.mutate(rejectId)}
         isLoading={rejectMutation.isPending}

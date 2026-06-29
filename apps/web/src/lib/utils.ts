@@ -16,7 +16,7 @@ export function formatCurrency(amount: number | string): string {
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: '2-digit',
@@ -25,7 +25,7 @@ export function formatDate(date: string | Date | null | undefined): string {
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: '2-digit',

@@ -115,7 +115,7 @@ export default function UsersPage() {
     { key: 'email', header: 'Email' },
     { key: 'role', header: 'Role', render: (r) => <Badge variant="outline">{r.role.replace('_', ' ')}</Badge> },
     { key: 'isActive', header: 'Status', render: (r) => <Badge variant={r.isActive ? 'success' : 'destructive'}>{r.isActive ? 'Active' : 'Inactive'}</Badge> },
-    { key: 'lastLoginAt', header: 'Last Login', render: (r) => r.lastLoginAt ? formatDate(r.lastLoginAt) : '—' },
+    { key: 'lastLoginAt', header: 'Last Login', render: (r) => r.lastLoginAt ? formatDate(r.lastLoginAt) : '-' },
     { key: 'createdAt', header: 'Created', render: (r) => formatDate(r.createdAt) },
   ];
 
@@ -206,7 +206,7 @@ export default function UsersPage() {
 
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Edit User — {editUser?.firstName} {editUser?.lastName}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Edit User: {editUser?.firstName} {editUser?.lastName}</DialogTitle></DialogHeader>
           <form onSubmit={editForm.handleSubmit((v) => editUser && editMutation.mutate({ id: editUser.id, values: v }))} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -246,7 +246,7 @@ export default function UsersPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete User"
-        description="This will permanently delete the user account. This action cannot be undone."
+        description="Delete this user account? They will lose access immediately."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

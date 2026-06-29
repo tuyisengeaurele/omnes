@@ -95,7 +95,7 @@ export default function BatchesPage() {
     { key: 'kiln', header: 'Kiln', render: (r) => r.kiln.name },
     { key: 'quantity', header: 'Quantity', render: (r) => r.quantity.toLocaleString() },
     { key: 'startDate', header: 'Start', render: (r) => formatDate(r.startDate) },
-    { key: 'endDate', header: 'End', render: (r) => r.endDate ? formatDate(r.endDate) : '—' },
+    { key: 'endDate', header: 'End', render: (r) => r.endDate ? formatDate(r.endDate) : '-' },
     { key: 'status', header: 'Status', render: (r) => <Badge variant={STATUS_COLORS[r.status] ?? 'outline'}>{r.status}</Badge> },
   ];
 

@@ -135,7 +135,7 @@ function PayrollRunDetail({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={`Payroll Run — ${formatDate(data.periodStart)} to ${formatDate(data.periodEnd)}`}
+        title={`Payroll: ${formatDate(data.periodStart)} to ${formatDate(data.periodEnd)}`}
         breadcrumbs={[{ label: 'HR' }, { label: 'Payroll', href: '/hr/payroll' }, { label: 'Detail' }]}
         actions={
           <div className="flex gap-2">

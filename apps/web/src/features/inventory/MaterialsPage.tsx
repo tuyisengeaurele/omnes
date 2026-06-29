@@ -174,7 +174,7 @@ export default function MaterialsPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Material"
-        description="This will permanently delete this raw material record."
+        description="Delete this raw material? Stock history will also be removed."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

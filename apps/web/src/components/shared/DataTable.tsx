@@ -136,7 +136,7 @@ export function DataTable<T extends { id: string }>({
                     <tr key={row.id} className="border-b hover:bg-muted/20 transition-colors">
                       {columns.map((col) => (
                         <td key={col.key} className={cn('px-4 py-3', col.className)}>
-                          {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '—')}
+                          {col.render ? col.render(row) : String((row as Record<string, unknown>)[col.key] ?? '-')}
                         </td>
                       ))}
                       {actions && <td className="px-4 py-3 text-right">{actions(row)}</td>}
@@ -149,7 +149,7 @@ export function DataTable<T extends { id: string }>({
 
       <div className="flex items-center justify-between text-sm text-brand-muted">
         <span>
-          {total === 0 ? 'No records' : `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, total)} of ${total}`}
+          {total === 0 ? 'No records' : `Showing ${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}`}
         </span>
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => onPageChange(1)} disabled={page === 1}>

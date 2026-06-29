@@ -79,7 +79,7 @@ export default function MovementsPage() {
     { key: 'rawMaterial', header: 'Material', render: (r) => r.rawMaterial.name },
     { key: 'type', header: 'Type', render: (r) => <Badge variant={TYPE_COLORS[r.type] ?? 'outline'}>{r.type}</Badge> },
     { key: 'quantity', header: 'Quantity', render: (r) => `${r.quantity.toLocaleString()} ${r.rawMaterial.unit}` },
-    { key: 'notes', header: 'Notes', render: (r) => r.notes ?? '—' },
+    { key: 'notes', header: 'Notes', render: (r) => r.notes ?? '-' },
     { key: 'createdAt', header: 'Date', render: (r) => formatDateTime(r.createdAt) },
   ];
 

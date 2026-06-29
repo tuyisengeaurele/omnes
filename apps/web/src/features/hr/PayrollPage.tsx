@@ -39,7 +39,7 @@ export default function PayrollPage() {
   });
 
   const columns: Column<PayrollRun>[] = [
-    { key: 'period', header: 'Period', render: (r) => `${formatDate(r.periodStart)} – ${formatDate(r.periodEnd)}` },
+    { key: 'period', header: 'Period', render: (r) => `${formatDate(r.periodStart)} to ${formatDate(r.periodEnd)}` },
     { key: 'payDate', header: 'Pay Date', render: (r) => formatDate(r.payDate) },
     { key: 'employees', header: 'Employees', render: (r) => r._count.payslips },
     { key: 'totalGross', header: 'Gross', render: (r) => formatCurrency(Number(r.totalGross)) },

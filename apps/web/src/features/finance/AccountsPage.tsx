@@ -142,7 +142,7 @@ export default function AccountsPage() {
               <Controller name="parentId" control={control} render={({ field }) => (
                 <Select onValueChange={field.onChange} value={field.value}>
                   <SelectTrigger><SelectValue placeholder="None (top-level)" /></SelectTrigger>
-                  <SelectContent>{(data ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{(data ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.code}: {a.name}</SelectItem>)}</SelectContent>
                 </Select>
               )} />
             </div>

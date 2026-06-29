@@ -82,8 +82,8 @@ export default function AttendancePage() {
     { key: 'employee', header: 'Employee', render: (r) => `${r.employee.firstName} ${r.employee.lastName}` },
     { key: 'empNo', header: 'Emp #', render: (r) => <span className="font-mono text-xs">{r.employee.employeeNumber}</span> },
     { key: 'date', header: 'Date', render: (r) => formatDate(r.date) },
-    { key: 'checkIn', header: 'Check In', render: (r) => r.checkIn ? r.checkIn.slice(11, 16) : '—' },
-    { key: 'checkOut', header: 'Check Out', render: (r) => r.checkOut ? r.checkOut.slice(11, 16) : '—' },
+    { key: 'checkIn', header: 'Check In', render: (r) => r.checkIn ? r.checkIn.slice(11, 16) : '-' },
+    { key: 'checkOut', header: 'Check Out', render: (r) => r.checkOut ? r.checkOut.slice(11, 16) : '-' },
     { key: 'status', header: 'Status', render: (r) => <Badge variant={STATUS_COLORS[r.status] ?? 'outline'}>{r.status}</Badge> },
   ];
 

@@ -86,7 +86,7 @@ export default function KilnsPage() {
   const columns: Column<Kiln>[] = [
     { key: 'name', header: 'Kiln Name' },
     { key: 'capacity', header: 'Capacity', render: (r) => r.capacity.toLocaleString() },
-    { key: 'location', header: 'Location', render: (r) => r.location ?? '—' },
+    { key: 'location', header: 'Location', render: (r) => r.location ?? '-' },
     { key: 'status', header: 'Status', render: (r) => <Badge variant={STATUS_COLORS[r.status] ?? 'outline'}>{r.status}</Badge> },
   ];
 
@@ -173,7 +173,7 @@ export default function KilnsPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Kiln"
-        description="This will permanently delete this kiln record."
+        description="Delete this kiln? All associated batch history will be affected."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}
