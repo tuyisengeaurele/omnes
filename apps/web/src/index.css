@@ -54,7 +54,17 @@
 
 /* Print styles */
 @media print {
-  .no-print {
-    display: none !important;
+  body * {
+    visibility: hidden;
+  }
+  .print-document,
+  .print-document * {
+    visibility: visible;
+  }
+  .print-document {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
   }
 }
