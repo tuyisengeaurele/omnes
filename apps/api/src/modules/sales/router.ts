@@ -84,14 +84,49 @@ router.get('/sales', async (req: Request, res: Response, next: NextFunction): Pr
 router.post('/sales', requireRole('ADMIN', 'MANAGER', 'SALES_OFFICER'), validate(createSaleSchema), auditLog('CREATE', 'Sale'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { items, ...saleData } = req.body as { items: Array<{ productId: string; quantity: number; unitPrice: number; totalPrice: number }>; customerId: string; saleDate: string; subtotal: number; vatAmount: number; totalAmount: number; notes?: string };
+      const { items, customerId, saleDate, notes } = req.body as { items: Array<{ productId: string; quantity: number; unitPrice: number; totalPrice: number }>; customerId: string; saleDate: string; notes?: string };
+
+      // Check stock for each item
+      for (const item of items) {
+        const product = await prisma.productType.findUnique({ where: { id: item.productId } });
+        if (!product) {
+          res.status(404).json({ success: false, message: `Product ${item.productId} not found` });
+          return;
+        }
+        if (Number(product.currentStock ?? 0) < item.quantity) {
+          res.status(400).json({
+            success: false,
+            message: `Insufficient stock for ${product.name}. Available: ${Number(product.currentStock ?? 0)}, requested: ${item.quantity}`,
+          });
+          return;
+        }
+      }
+
+      // Compute totals server-side — do not trust client-sent values
+      const settings = await prisma.companySettings.findUnique({ where: { id: 'default' } });
+      const vatRate = Number(settings?.vatRate ?? 18) / 100;
+
+      const computedSubtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
+      const computedVat = Math.round(computedSubtotal * vatRate * 100) / 100;
+      const computedTotal = Math.round((computedSubtotal + computedVat) * 100) / 100;
+
       const year = new Date().getFullYear();
       const count = await prisma.sale.count();
       const invoiceNumber = generateInvoiceNumber(year, count + 1);
       const proformaNumber = generateProformaNumber(year, count + 1);
 
       const sale = await prisma.sale.create({
-        data: { ...saleData, invoiceNumber, proformaNumber, items: { create: items } },
+        data: {
+          customerId,
+          saleDate,
+          notes,
+          subtotal: computedSubtotal,
+          vatAmount: computedVat,
+          totalAmount: computedTotal,
+          invoiceNumber,
+          proformaNumber,
+          items: { create: items },
+        },
         include: SALE_INCLUDE,
       });
       res.status(201).json({ success: true, data: sale });

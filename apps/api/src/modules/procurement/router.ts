@@ -86,9 +86,19 @@ router.get('/purchase-orders', async (req: Request, res: Response, next: NextFun
 router.post('/purchase-orders', requireRole('ADMIN', 'MANAGER'), validate(createPurchaseOrderSchema), auditLog('CREATE', 'PurchaseOrder'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { items, ...poData } = req.body as { items: Array<{ materialId: string; quantity: number; unitPrice: number; totalPrice: number }>; supplierId: string; orderDate: string; totalAmount: number; notes?: string };
+      const { items, supplierId, orderDate, expectedDate, notes } = req.body as { items: Array<{ materialId: string; quantity: number; unitPrice: number; totalPrice?: number }>; supplierId: string; orderDate: string; expectedDate?: string; notes?: string };
+
+      const computedTotal = items.reduce((sum: number, item: { quantity: number; unitPrice: number }) => sum + item.quantity * item.unitPrice, 0);
+
+      const itemsWithTotal = items.map(item => ({
+        materialId: item.materialId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.quantity * item.unitPrice,
+      }));
+
       const po = await prisma.purchaseOrder.create({
-        data: { ...poData, poNumber: `PO-${Date.now()}`, items: { create: items } },
+        data: { supplierId, orderDate, expectedDate, notes, totalAmount: computedTotal, poNumber: `PO-${Date.now()}`, items: { create: itemsWithTotal } },
         include: PO_INCLUDE,
       });
       res.status(201).json({ success: true, data: po });
@@ -121,10 +131,30 @@ router.put('/purchase-orders/:id', requireRole('ADMIN', 'MANAGER'), validate(upd
   }
 );
 
+const VALID_PO_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ['SENT', 'CANCELLED'],
+  SENT: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['RECEIVED', 'CANCELLED'],
+  RECEIVED: [],
+  CANCELLED: [],
+};
+
 router.patch('/purchase-orders/:id/status', requireRole('ADMIN', 'MANAGER'), validate(updatePOStatusSchema), auditLog('UPDATE_STATUS', 'PurchaseOrder'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { status, receivedDate } = req.body as { status: string; receivedDate?: string };
+
+      const current = await prisma.purchaseOrder.findUnique({ where: { id: req.params['id'] } });
+      if (!current) { res.status(404).json({ success: false, message: 'Purchase order not found' }); return; }
+      const allowed = VALID_PO_TRANSITIONS[current.status] ?? [];
+      if (!allowed.includes(status)) {
+        res.status(400).json({
+          success: false,
+          message: `Cannot transition from ${current.status} to ${status}`,
+        });
+        return;
+      }
+
       const data: Record<string, unknown> = { status };
       if (receivedDate) data['receivedDate'] = new Date(receivedDate);
 

@@ -26,9 +26,10 @@ export const createSaleSchema = z.object({
   customerId: z.string().min(1),
   saleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  subtotal: z.number().min(0),
-  vatAmount: z.number().min(0),
-  totalAmount: z.number().positive(),
+  // subtotal, vatAmount, totalAmount are computed server-side and must not be trusted from the client
+  subtotal: z.number().min(0).optional(),
+  vatAmount: z.number().min(0).optional(),
+  totalAmount: z.number().positive().optional(),
   notes: z.string().optional(),
   items: z.array(saleItemSchema).min(1),
 });

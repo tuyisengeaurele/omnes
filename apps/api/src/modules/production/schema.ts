@@ -38,8 +38,11 @@ export const updateBatchStatusSchema = z.object({
 export const createBatchOutputSchema = z.object({
   productId: z.string().min(1),
   planned: z.number().int().positive(),
-  produced: z.number().int().min(0).optional(),
-  rejected: z.number().int().min(0).optional(),
+  produced: z.number().int().nonnegative(),
+  rejected: z.number().int().nonnegative(),
+}).refine(data => data.rejected <= data.produced, {
+  message: 'Rejected quantity cannot exceed produced quantity',
+  path: ['rejected'],
 });
 
 export const createMaterialUsageSchema = z.object({
