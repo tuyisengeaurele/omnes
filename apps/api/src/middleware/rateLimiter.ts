@@ -23,3 +23,11 @@ export const exportLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+export const reportDataLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { success: false, message: 'Too many report requests. Please slow down.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

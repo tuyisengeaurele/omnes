@@ -16,17 +16,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const restoreSession = useCallback(async () => {
-    const refreshToken = localStorage.getItem('omnes_refresh');
-    if (!refreshToken) { setIsLoading(false); return; }
     try {
-      const res = await api.post('/auth/refresh', { refreshToken });
-      const { accessToken, refreshToken: newRefresh } = res.data.data as { accessToken: string; refreshToken: string };
+      // Cookie is sent automatically — no body needed
+      const res = await api.post('/auth/refresh', {});
+      const { accessToken } = res.data.data as { accessToken: string };
       setAccessToken(accessToken);
-      localStorage.setItem('omnes_refresh', newRefresh);
       const meRes = await api.get('/auth/me');
       setUser(meRes.data.data as AuthUser);
     } catch {
-      localStorage.removeItem('omnes_refresh');
+      // No stored session — user needs to log in
     } finally {
       setIsLoading(false);
     }
@@ -36,17 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password });
-    const { accessToken, refreshToken, user: userData } = res.data.data as { accessToken: string; refreshToken: string; user: AuthUser };
+    const { accessToken, user: userData } = res.data.data as { accessToken: string; user: AuthUser };
     setAccessToken(accessToken);
-    localStorage.setItem('omnes_refresh', refreshToken);
     setUser(userData);
   }, []);
 
   const logout = useCallback(async () => {
-    const refreshToken = localStorage.getItem('omnes_refresh');
-    try { await api.post('/auth/logout', { refreshToken }); } catch { /* ignore */ }
+    try { await api.post('/auth/logout'); } catch { /* ignore */ }
     setAccessToken(null);
-    localStorage.removeItem('omnes_refresh');
     setUser(null);
   }, []);
 

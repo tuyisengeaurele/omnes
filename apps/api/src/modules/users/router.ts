@@ -7,6 +7,12 @@ import { getPagination, buildPaginatedResponse } from '../../utils/pagination';
 import { prisma } from '../../config/prisma';
 import { createUserSchema, updateUserSchema } from './schema';
 import bcrypt from 'bcryptjs';
+import { z } from 'zod';
+
+// Enforce bcrypt 72-byte limit on passwords at the router level
+const createUserSchemaWithMaxPassword = createUserSchema.extend({
+  password: z.string().min(8).max(72),
+});
 
 export const router = Router();
 
@@ -49,7 +55,7 @@ router.get('/', async (req: Request, res: Response, next: NextFunction): Promise
 
 router.post(
   '/',
-  validate(createUserSchema),
+  validate(createUserSchemaWithMaxPassword),
   auditLog('CREATE', 'User'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
@@ -97,12 +103,18 @@ router.patch(
     try {
       const current = await prisma.user.findUnique({ where: { id: req.params['id'] } });
       if (!current) { res.status(404).json({ success: false, message: 'User not found' }); return; }
-      const user = await prisma.user.update({
+      const updatedUser = await prisma.user.update({
         where: { id: req.params['id'] },
         data: { isActive: !current.isActive },
         select: USER_SELECT,
       });
-      res.json({ success: true, data: user });
+      if (!updatedUser.isActive) {
+        await prisma.refreshToken.updateMany({
+          where: { userId: req.params['id'], burned: false },
+          data: { burned: true },
+        });
+      }
+      res.json({ success: true, data: updatedUser });
     } catch (err) { next(err); }
   }
 );
