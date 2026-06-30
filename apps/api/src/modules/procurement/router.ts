@@ -131,10 +131,30 @@ router.put('/purchase-orders/:id', requireRole('ADMIN', 'MANAGER'), validate(upd
   }
 );
 
+const VALID_PO_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ['SENT', 'CANCELLED'],
+  SENT: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['RECEIVED', 'CANCELLED'],
+  RECEIVED: [],
+  CANCELLED: [],
+};
+
 router.patch('/purchase-orders/:id/status', requireRole('ADMIN', 'MANAGER'), validate(updatePOStatusSchema), auditLog('UPDATE_STATUS', 'PurchaseOrder'),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { status, receivedDate } = req.body as { status: string; receivedDate?: string };
+
+      const current = await prisma.purchaseOrder.findUnique({ where: { id: req.params['id'] } });
+      if (!current) { res.status(404).json({ success: false, message: 'Purchase order not found' }); return; }
+      const allowed = VALID_PO_TRANSITIONS[current.status] ?? [];
+      if (!allowed.includes(status)) {
+        res.status(400).json({
+          success: false,
+          message: `Cannot transition from ${current.status} to ${status}`,
+        });
+        return;
+      }
+
       const data: Record<string, unknown> = { status };
       if (receivedDate) data['receivedDate'] = new Date(receivedDate);
 
