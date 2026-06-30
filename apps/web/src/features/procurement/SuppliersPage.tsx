@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Power } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Supplier {
   id: string;
@@ -59,12 +60,24 @@ export default function SuppliersPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Supplier updated.' : 'Supplier created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/suppliers/${id}/toggle-status`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['suppliers'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['suppliers'] });
+      toast.success('Supplier status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const openEdit = (row: Supplier) => {

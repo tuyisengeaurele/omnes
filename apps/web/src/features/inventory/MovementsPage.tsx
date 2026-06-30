@@ -13,6 +13,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/utils';
 
 interface StockMovement {
@@ -72,6 +73,11 @@ export default function MovementsPage() {
       void qc.invalidateQueries({ queryKey: ['raw-materials'] });
       setDialogOpen(false);
       reset({ type: 'IN' });
+      toast.success('Movement recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

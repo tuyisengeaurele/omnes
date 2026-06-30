@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Truck, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface POLine {
   id: string;
@@ -74,6 +75,11 @@ export default function PODetailPage() {
       void qc.invalidateQueries({ queryKey: ['purchase-order', id] });
       void qc.invalidateQueries({ queryKey: ['raw-materials'] });
       setReceiveOpen(false);
+      toast.success('Goods received. Stock updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -87,6 +93,11 @@ export default function PODetailPage() {
       void qc.invalidateQueries({ queryKey: ['purchase-order', id] });
       setPaymentOpen(false);
       paymentForm.reset({ paymentDate: new Date().toISOString().split('T')[0], method: 'BANK_TRANSFER' });
+      toast.success('Payment recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

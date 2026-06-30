@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface PurchaseOrder {
   id: string;
@@ -87,6 +88,11 @@ export default function PurchaseOrdersPage() {
       void qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       setDialogOpen(false);
       reset({ orderDate: new Date().toISOString().split('T')[0], lines: [{ rawMaterialId: '', quantity: 1, unitPrice: 0 }] });
+      toast.success('Purchase order created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
