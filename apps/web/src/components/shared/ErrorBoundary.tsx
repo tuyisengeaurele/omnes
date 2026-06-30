@@ -19,6 +19,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[ErrorBoundary]', error, info.componentStack);
+    const status = (error as unknown as { response?: { status?: number } })?.response?.status;
+    if (status === 401) {
+      window.location.href = '/login';
+    }
   }
 
   handleReset = () => this.setState({ hasError: false, error: null });

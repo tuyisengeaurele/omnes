@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Power } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Supplier {
   id: string;
@@ -33,6 +34,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function SuppliersPage() {
+  useEffect(() => {
+    document.title = 'Suppliers | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -59,12 +64,24 @@ export default function SuppliersPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Supplier updated.' : 'Supplier created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/suppliers/${id}/toggle-status`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['suppliers'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['suppliers'] });
+      toast.success('Supplier status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const openEdit = (row: Supplier) => {

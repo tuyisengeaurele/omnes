@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -14,6 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Kiln {
   id: string;
@@ -38,6 +39,10 @@ const STATUS_COLORS: Record<string, 'success' | 'secondary' | 'warning'> = {
 };
 
 export default function KilnsPage() {
+  useEffect(() => {
+    document.title = 'Kilns | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -66,6 +71,11 @@ export default function KilnsPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Kiln updated.' : 'Kiln created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -74,6 +84,11 @@ export default function KilnsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['kilns'] });
       setDeleteId(null);
+      toast.success('Kiln deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

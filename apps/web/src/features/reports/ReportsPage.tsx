@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '@/lib/axios';
@@ -25,6 +26,10 @@ const REPORT_LINKS = [
 ];
 
 export default function ReportsPage() {
+  useEffect(() => {
+    document.title = 'Reports | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { data } = useQuery({
     queryKey: ['reports-dashboard'],
     queryFn: async () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Attendance {
   id: string;
@@ -43,6 +44,10 @@ const STATUS_COLORS: Record<string, 'success' | 'destructive' | 'warning' | 'sec
 };
 
 export default function AttendancePage() {
+  useEffect(() => {
+    document.title = 'Attendance | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -75,6 +80,11 @@ export default function AttendancePage() {
       void qc.invalidateQueries({ queryKey: ['attendance'] });
       setDialogOpen(false);
       reset();
+      toast.success('Attendance recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

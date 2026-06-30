@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface MaintenanceLog {
   id: string;
@@ -41,6 +42,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'secondary' | 'success' | 'destr
 const STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
 export default function MaintenancePage() {
+  useEffect(() => {
+    document.title = 'Maintenance Logs | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -73,12 +78,24 @@ export default function MaintenancePage() {
       void qc.invalidateQueries({ queryKey: ['maintenance-logs'] });
       setDialogOpen(false);
       reset({ scheduledDate: new Date().toISOString().split('T')[0] });
+      toast.success('Maintenance scheduled.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) => api.patch(`/maintenance-logs/${id}/status`, { status }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['maintenance-logs'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['maintenance-logs'] });
+      toast.success('Status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const columns: Column<MaintenanceLog>[] = [

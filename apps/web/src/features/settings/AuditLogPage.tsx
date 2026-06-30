@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -27,6 +27,10 @@ const ACTION_COLORS: Record<string, 'success' | 'warning' | 'destructive' | 'sec
 };
 
 export default function AuditLogPage() {
+  useEffect(() => {
+    document.title = 'Audit Log | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'ADMIN';
 

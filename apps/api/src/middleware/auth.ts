@@ -20,7 +20,7 @@ declare global {
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    res.status(401).json({ success: false, message: 'Authentication required' });
+    res.status(401).json({ success: false, message: 'Login required' });
     return;
   }
 
@@ -30,6 +30,6 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
     req.user = { id: payload.id, email: payload.email, role: payload.role };
     next();
   } catch {
-    res.status(401).json({ success: false, message: 'Invalid or expired token' });
+    res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
   }
 }

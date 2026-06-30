@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import type { EmployeeStatus } from '@/types';
+import { toast } from 'sonner';
 
 interface Employee {
   id: string;
@@ -60,6 +61,10 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function EmployeesPage() {
+  useEffect(() => {
+    document.title = 'Employees | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -99,6 +104,11 @@ export default function EmployeesPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Employee updated.' : 'Employee created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -107,6 +117,11 @@ export default function EmployeesPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['employees'] });
       setDeleteId(null);
+      toast.success('Employee removed.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -159,7 +174,7 @@ export default function EmployeesPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) { reset(); setEditingId(null); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? 'Edit Employee' : 'Add Employee'}</DialogTitle>
           </DialogHeader>

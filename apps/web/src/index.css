@@ -54,17 +54,10 @@
 
 /* Print styles */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .print-document,
-  .print-document * {
-    visibility: visible;
+  body > * {
+    display: none;
   }
   .print-document {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
+    display: block !important;
   }
 }

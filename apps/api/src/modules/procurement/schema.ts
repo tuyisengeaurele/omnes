@@ -17,16 +17,18 @@ export const updateSupplierSchema = createSupplierSchema.partial();
 
 export const purchaseItemSchema = z.object({
   materialId: z.string().min(1),
-  quantity: z.number().positive(),
-  unitPrice: z.number().positive(),
-  totalPrice: z.number().positive(),
+  quantity: z.number().positive('Quantity must be greater than zero'),
+  unitPrice: z.number().positive('Unit price must be greater than zero'),
+  // totalPrice is computed server-side and must not be trusted from the client
+  totalPrice: z.number().positive().optional(),
 });
 
 export const createPurchaseOrderSchema = z.object({
   supplierId: z.string().min(1),
   orderDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   expectedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  totalAmount: z.number().positive(),
+  // totalAmount is computed server-side and must not be trusted from the client
+  totalAmount: z.number().positive().optional(),
   notes: z.string().optional(),
   items: z.array(purchaseItemSchema).min(1),
 });

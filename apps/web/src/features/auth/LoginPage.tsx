@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,6 +19,10 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  useEffect(() => {
+    document.title = 'Login | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
@@ -66,7 +70,7 @@ export default function LoginPage() {
           </div>
           <div className="text-center text-slate-400 text-sm leading-relaxed">
             <p>Integrated management for</p>
-            <p>brick manufacturing excellence.</p>
+            <p>brick manufacturing operations.</p>
           </div>
           <div className="flex flex-col gap-2 w-full text-xs text-slate-500">
             <div className="flex items-center gap-2">
@@ -98,7 +102,7 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-dark">Sign in to OMNES</h2>
-            <p className="mt-1 text-sm text-brand-muted">Enter your credentials to access the system</p>
+            <p className="mt-1 text-sm text-brand-muted">Use your work email and password to sign in.</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">

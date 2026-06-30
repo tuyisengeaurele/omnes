@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -21,6 +21,10 @@ const defaultFrom = `${new Date().getFullYear()}-01-01`;
 const defaultTo = new Date().toISOString().split('T')[0];
 
 export default function ProfitLossPage() {
+  useEffect(() => {
+    document.title = 'Profit & Loss | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
 
@@ -58,7 +62,7 @@ export default function ProfitLossPage() {
             <span className="font-medium text-dark">{formatCurrency(data?.revenue ?? 0)}</span>
           </div>
           <div className="flex items-center justify-between py-2 text-sm text-brand-muted">
-            <span>VAT Collected (informational)</span>
+            <span>VAT Collected (not included in costs)</span>
             <span>{formatCurrency(data?.vatCollected ?? 0)}</span>
           </div>
 

@@ -52,6 +52,9 @@ export const createLeaveSchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   totalDays: z.number().int().positive(),
   reason: z.string().min(1),
+}).refine(data => data.endDate >= data.startDate, {
+  message: 'End date must be on or after start date',
+  path: ['endDate'],
 });
 
 export const updateLeaveStatusSchema = z.object({

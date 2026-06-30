@@ -22,7 +22,7 @@ export function errorHandler(
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
-      res.status(409).json({ success: false, message: 'A record with this value already exists.' });
+      res.status(409).json({ success: false, message: 'A record with that value already exists.' });
       return;
     }
     if (err.code === 'P2025') {
@@ -31,5 +31,5 @@ export function errorHandler(
     }
   }
 
-  res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+  res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
 }

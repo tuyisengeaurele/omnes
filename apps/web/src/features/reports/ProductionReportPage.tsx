@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -40,6 +40,10 @@ const defaultFrom = `${new Date().getFullYear()}-01-01`;
 const defaultTo = new Date().toISOString().split('T')[0];
 
 export default function ProductionReportPage() {
+  useEffect(() => {
+    document.title = 'Production Report | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const [from, setFrom] = useState(defaultFrom);
   const [to, setTo] = useState(defaultTo);
 

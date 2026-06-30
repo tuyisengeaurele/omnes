@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/features/auth/AuthContext';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -49,6 +50,10 @@ type CreateValues = z.infer<typeof createSchema>;
 type EditValues = z.infer<typeof editSchema>;
 
 export default function UsersPage() {
+  useEffect(() => {
+    document.title = 'Users | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const { user: currentUser } = useAuth();
   const isAdmin = currentUser?.role === 'ADMIN';
@@ -81,6 +86,11 @@ export default function UsersPage() {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setCreateOpen(false);
       createForm.reset({ role: 'SALES_OFFICER' });
+      toast.success('User created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -89,12 +99,24 @@ export default function UsersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setEditUser(null);
+      toast.success('User updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/users/${id}/toggle-status`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['users'] });
+      toast.success('User status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -102,6 +124,11 @@ export default function UsersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setDeleteId(null);
+      toast.success('User deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
