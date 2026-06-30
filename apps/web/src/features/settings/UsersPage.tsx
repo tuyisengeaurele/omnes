@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/features/auth/AuthContext';
+import { toast } from 'sonner';
 
 interface User {
   id: string;
@@ -81,6 +82,11 @@ export default function UsersPage() {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setCreateOpen(false);
       createForm.reset({ role: 'SALES_OFFICER' });
+      toast.success('User created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -89,12 +95,24 @@ export default function UsersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setEditUser(null);
+      toast.success('User updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const toggleMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/users/${id}/toggle-status`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['users'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['users'] });
+      toast.success('User status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -102,6 +120,11 @@ export default function UsersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['users'] });
       setDeleteId(null);
+      toast.success('User deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

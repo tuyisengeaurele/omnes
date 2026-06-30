@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Save } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { toast } from 'sonner';
 
 interface CompanySettings {
   id: string;
@@ -73,7 +74,14 @@ export default function CompanySettingsPage() {
 
   const mutation = useMutation({
     mutationFn: (values: FormValues) => api.put('/company-settings', values),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['company-settings'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['company-settings'] });
+      toast.success('Company settings saved.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   if (isLoading) return <div className="p-8 text-center text-brand-muted">Loading settings...</div>;
