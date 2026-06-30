@@ -26,9 +26,12 @@ export const createJournalEntrySchema = z.object({
   lines: z.array(journalLineSchema).min(2),
 });
 
+const EXPENSE_CATEGORIES = ['MATERIALS', 'UTILITIES', 'TRANSPORT', 'REPAIRS', 'SALARIES', 'MARKETING', 'RENT', 'OTHER'] as const;
+export const expenseCategoryEnum = z.enum(EXPENSE_CATEGORIES);
+
 export const createExpenseSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  category: z.string().min(1),
+  category: expenseCategoryEnum,
   description: z.string().min(1),
   amount: z.number().positive(),
   paidBy: z.string().min(1),
