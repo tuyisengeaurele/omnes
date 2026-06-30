@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface ProductType {
   id: string;
@@ -58,6 +59,11 @@ export default function ProductTypesPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Product type updated.' : 'Product type created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -66,6 +72,11 @@ export default function ProductTypesPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['product-types'] });
       setDeleteId(null);
+      toast.success('Product type deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

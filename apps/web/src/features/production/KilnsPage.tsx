@@ -14,6 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Kiln {
   id: string;
@@ -66,6 +67,11 @@ export default function KilnsPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Kiln updated.' : 'Kiln created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -74,6 +80,11 @@ export default function KilnsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['kilns'] });
       setDeleteId(null);
+      toast.success('Kiln deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

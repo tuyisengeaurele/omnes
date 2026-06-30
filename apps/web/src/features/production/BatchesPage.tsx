@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Batch {
   id: string;
@@ -86,6 +87,11 @@ export default function BatchesPage() {
       void qc.invalidateQueries({ queryKey: ['batches'] });
       setDialogOpen(false);
       reset();
+      toast.success('Batch created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

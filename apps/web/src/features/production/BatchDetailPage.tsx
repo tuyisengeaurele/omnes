@@ -15,6 +15,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { ArrowLeft, Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface MaterialUsage {
   id: string;
@@ -80,7 +81,14 @@ export default function BatchDetailPage() {
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.patch(`/batches/${id}/status`, { status }),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['batch', id] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['batch', id] });
+      toast.success('Status updated.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const outputForm = useForm<OutputForm>({ resolver: zodResolver(outputSchema), defaultValues: { qualityGrade: 'A' } });
@@ -90,6 +98,11 @@ export default function BatchDetailPage() {
       void qc.invalidateQueries({ queryKey: ['batch', id] });
       setOutputDialogOpen(false);
       outputForm.reset({ qualityGrade: 'A' });
+      toast.success('Output recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -100,6 +113,11 @@ export default function BatchDetailPage() {
       void qc.invalidateQueries({ queryKey: ['batch', id] });
       setUsageDialogOpen(false);
       usageForm.reset();
+      toast.success('Material usage recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
