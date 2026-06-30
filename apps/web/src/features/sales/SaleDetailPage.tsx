@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { ArrowLeft, Printer, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { CompanySettings } from '@/types';
+import { toast } from 'sonner';
 
 interface SaleLine {
   id: string;
@@ -151,6 +152,11 @@ export default function SaleDetailPage() {
       void qc.invalidateQueries({ queryKey: ['sale', id] });
       setPaymentOpen(false);
       paymentForm.reset({ paymentDate: new Date().toISOString().split('T')[0], method: 'CASH' });
+      toast.success('Payment recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

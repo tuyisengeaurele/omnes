@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Sale {
   id: string;
@@ -95,6 +96,11 @@ export default function SalesPage() {
       void qc.invalidateQueries({ queryKey: ['sales'] });
       setDialogOpen(false);
       reset({ saleDate: new Date().toISOString().split('T')[0], lines: [{ productTypeId: '', quantity: 1, unitPrice: 0 }] });
+      toast.success('Sale created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

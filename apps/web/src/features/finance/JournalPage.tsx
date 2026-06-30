@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface JournalEntry {
   id: string;
@@ -73,6 +74,11 @@ export default function JournalPage() {
       void qc.invalidateQueries({ queryKey: ['journal-entries'] });
       setDialogOpen(false);
       reset({ entryDate: new Date().toISOString().split('T')[0], lines: [{ accountId: '', debit: 0, credit: 0 }, { accountId: '', debit: 0, credit: 0 }] });
+      toast.success('Journal entry posted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

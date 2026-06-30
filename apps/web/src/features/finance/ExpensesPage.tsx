@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Expense {
   id: string;
@@ -56,6 +57,11 @@ export default function ExpensesPage() {
       void qc.invalidateQueries({ queryKey: ['expenses'] });
       setDialogOpen(false);
       reset({ category: 'OTHER', expenseDate: new Date().toISOString().split('T')[0] });
+      toast.success('Expense recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

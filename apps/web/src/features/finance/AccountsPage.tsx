@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Account {
   id: string;
@@ -63,6 +64,11 @@ export default function AccountsPage() {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
       setDialogOpen(false);
       reset({ type: 'ASSET' });
+      toast.success('Account created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

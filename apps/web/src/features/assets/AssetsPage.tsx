@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Archive } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface FixedAsset {
   id: string;
@@ -66,6 +67,11 @@ export default function AssetsPage() {
       void qc.invalidateQueries({ queryKey: ['fixed-assets'] });
       setDialogOpen(false);
       reset({ purchaseDate: new Date().toISOString().split('T')[0] });
+      toast.success('Asset created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -74,6 +80,11 @@ export default function AssetsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['fixed-assets'] });
       setDisposeId(null);
+      toast.success('Asset disposed.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

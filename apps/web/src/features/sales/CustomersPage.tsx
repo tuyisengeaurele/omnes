@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Customer {
   id: string;
@@ -59,6 +60,11 @@ export default function CustomersPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Customer updated.' : 'Customer created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -67,6 +73,11 @@ export default function CustomersPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['customers'] });
       setDeleteId(null);
+      toast.success('Customer deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
