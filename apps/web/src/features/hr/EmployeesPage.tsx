@@ -17,6 +17,7 @@ import { Plus, Edit, Trash2, Eye } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import type { EmployeeStatus } from '@/types';
+import { toast } from 'sonner';
 
 interface Employee {
   id: string;
@@ -99,6 +100,11 @@ export default function EmployeesPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Employee updated.' : 'Employee created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -107,6 +113,11 @@ export default function EmployeesPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['employees'] });
       setDeleteId(null);
+      toast.success('Employee removed.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

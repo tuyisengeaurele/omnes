@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Attendance {
   id: string;
@@ -75,6 +76,11 @@ export default function AttendancePage() {
       void qc.invalidateQueries({ queryKey: ['attendance'] });
       setDialogOpen(false);
       reset();
+      toast.success('Attendance recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

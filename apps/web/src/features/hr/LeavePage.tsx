@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { Plus, CheckCircle, XCircle } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { useAuth } from '@/features/auth/AuthContext';
+import { toast } from 'sonner';
 
 interface Leave {
   id: string;
@@ -79,17 +80,38 @@ export default function LeavePage() {
       void qc.invalidateQueries({ queryKey: ['leaves'] });
       setDialogOpen(false);
       reset();
+      toast.success('Leave request submitted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/leaves/${id}/approve`),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['leaves'] }); setApproveId(null); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['leaves'] });
+      setApproveId(null);
+      toast.success('Leave approved.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const rejectMutation = useMutation({
     mutationFn: (id: string) => api.patch(`/leaves/${id}/reject`),
-    onSuccess: () => { void qc.invalidateQueries({ queryKey: ['leaves'] }); setRejectId(null); },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['leaves'] });
+      setRejectId(null);
+      toast.success('Leave rejected.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const isManager = user?.role === 'ADMIN' || user?.role === 'MANAGER';
