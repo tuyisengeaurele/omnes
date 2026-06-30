@@ -156,7 +156,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-brand-muted">
-            OMNES ERP © {new Date().getFullYear()} — Secure access only
+            OMNES ERP &copy; {new Date().getFullYear()}. Authorised access only.
           </p>
         </div>
       </div>

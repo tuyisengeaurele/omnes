@@ -79,8 +79,8 @@ export default function CustomersPage() {
   const columns: Column<Customer>[] = [
     { key: 'name', header: 'Customer' },
     { key: 'phone', header: 'Phone' },
-    { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
-    { key: 'tinNumber', header: 'TIN', render: (r) => r.tinNumber ?? '—' },
+    { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
+    { key: 'tinNumber', header: 'TIN', render: (r) => r.tinNumber ?? '-' },
   ];
 
   return (
@@ -161,7 +161,7 @@ export default function CustomersPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Customer"
-        description="This will permanently delete this customer record."
+        description="Delete this customer? Associated sales records will remain."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

@@ -149,7 +149,7 @@ export default function PODetailPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Payments — {formatCurrency(totalPaid)} of {formatCurrency(Number(data.totalAmount))} paid</CardTitle>
+          <CardTitle className="text-base">Payments ({formatCurrency(totalPaid)} of {formatCurrency(Number(data.totalAmount))} paid)</CardTitle>
           <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Payment</Button>
         </CardHeader>
         <CardContent>
@@ -173,7 +173,7 @@ export default function PODetailPage() {
         open={receiveOpen}
         onOpenChange={setReceiveOpen}
         title="Receive Goods"
-        description="This will mark the PO as received and add the line item quantities to raw material stock."
+        description="Mark this PO as received? Line item quantities will be added to stock."
         confirmLabel="Receive"
         onConfirm={() => receiveMutation.mutate()}
         isLoading={receiveMutation.isPending}

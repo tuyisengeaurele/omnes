@@ -114,7 +114,7 @@ function PrintableDocument({ sale, company }: { sale: SaleDetail; company: Compa
         </div>
       </div>
 
-      <p className="mt-12 text-xs text-brand-muted text-center">Thank you for your business — {company?.name ?? 'OMNES'}</p>
+      <p className="mt-12 text-xs text-brand-muted text-center">Thank you for your business. {company?.name ?? 'OMNES'}</p>
     </div>
   );
 }
@@ -212,7 +212,7 @@ export default function SaleDetailPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Payments — {formatCurrency(totalPaid)} of {formatCurrency(Number(data.totalAmount))} received</CardTitle>
+            <CardTitle className="text-base">Payments ({formatCurrency(totalPaid)} of {formatCurrency(Number(data.totalAmount))} received)</CardTitle>
             <Button size="sm" variant="outline" onClick={() => setPaymentOpen(true)}><Plus className="h-3.5 w-3.5" /> Add Payment</Button>
           </CardHeader>
           <CardContent>

@@ -75,7 +75,7 @@ export default function DepartmentsPage() {
 
   const columns: Column<Department>[] = [
     { key: 'name', header: 'Name' },
-    { key: 'description', header: 'Description', render: (r) => r.description ?? '—' },
+    { key: 'description', header: 'Description', render: (r) => r.description ?? '-' },
     { key: 'employees', header: 'Employees', render: (r) => r._count.employees },
     { key: 'createdAt', header: 'Created', render: (r) => formatDate(r.createdAt) },
   ];
@@ -143,7 +143,7 @@ export default function DepartmentsPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Department"
-        description="This will permanently delete this department. Employees must be moved first."
+        description="Delete this department? All employees must be reassigned before deletion."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

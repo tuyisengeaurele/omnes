@@ -132,8 +132,8 @@ export default function ProductionReportPage() {
                   <td className="px-3 py-2 font-mono text-xs">{b.batchNumber}</td>
                   <td className="px-3 py-2">{b.kiln.name}</td>
                   <td className="px-3 py-2"><Badge variant={STATUS_COLORS[b.status] ?? 'outline'}>{b.status}</Badge></td>
-                  <td className="px-3 py-2">{b.plannedStartDate ? formatDate(b.plannedStartDate) : '—'}</td>
-                  <td className="px-3 py-2">{b.completionDate ? formatDate(b.completionDate) : '—'}</td>
+                  <td className="px-3 py-2">{b.plannedStartDate ? formatDate(b.plannedStartDate) : '-'}</td>
+                  <td className="px-3 py-2">{b.completionDate ? formatDate(b.completionDate) : '-'}</td>
                 </tr>
               ))}
               {!isLoading && (data?.batches ?? []).length === 0 && (

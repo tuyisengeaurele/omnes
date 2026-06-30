@@ -79,7 +79,7 @@ export default function ProductTypesPage() {
     { key: 'name', header: 'Name' },
     { key: 'unit', header: 'Unit' },
     { key: 'standardPrice', header: 'Standard Price', render: (r) => formatCurrency(Number(r.standardPrice)) },
-    { key: 'description', header: 'Description', render: (r) => r.description ?? '—' },
+    { key: 'description', header: 'Description', render: (r) => r.description ?? '-' },
   ];
 
   return (
@@ -156,7 +156,7 @@ export default function ProductTypesPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Product Type"
-        description="This will permanently delete this product type."
+        description="Delete this product type? It must not be referenced by any active batches."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

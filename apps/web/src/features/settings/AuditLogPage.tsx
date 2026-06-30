@@ -47,8 +47,8 @@ export default function AuditLogPage() {
     { key: 'user', header: 'User', render: (r) => `${r.user.firstName} ${r.user.lastName}` },
     { key: 'action', header: 'Action', render: (r) => <Badge variant={ACTION_COLORS[r.action] ?? 'outline'}>{r.action}</Badge> },
     { key: 'entity', header: 'Entity' },
-    { key: 'entityId', header: 'Entity ID', render: (r) => <span className="font-mono text-xs">{r.entityId ?? '—'}</span> },
-    { key: 'ipAddress', header: 'IP Address', render: (r) => r.ipAddress ?? '—' },
+    { key: 'entityId', header: 'Entity ID', render: (r) => <span className="font-mono text-xs">{r.entityId ?? '-'}</span> },
+    { key: 'ipAddress', header: 'IP Address', render: (r) => r.ipAddress ?? '-' },
   ];
 
   if (!isAdmin) {

@@ -158,7 +158,7 @@ export default function AssetsPage() {
         open={!!disposeId}
         onOpenChange={(o) => !o && setDisposeId(null)}
         title="Dispose Asset"
-        description="This will mark the asset as disposed. This action cannot be undone."
+        description="Mark this asset as disposed? This status cannot be reversed."
         confirmLabel="Dispose"
         onConfirm={() => disposeId && disposeMutation.mutate(disposeId)}
         isLoading={disposeMutation.isPending}

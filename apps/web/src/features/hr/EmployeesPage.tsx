@@ -220,7 +220,7 @@ export default function EmployeesPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Employee"
-        description="This will permanently delete this employee record. This action cannot be undone."
+        description="Delete this employee record? This cannot be reversed."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

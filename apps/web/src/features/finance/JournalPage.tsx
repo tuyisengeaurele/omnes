@@ -135,7 +135,7 @@ export default function JournalPage() {
                   <Controller name={`lines.${index}.accountId`} control={control} render={({ field: f }) => (
                     <Select onValueChange={f.onChange} value={f.value}>
                       <SelectTrigger><SelectValue placeholder="Account" /></SelectTrigger>
-                      <SelectContent>{accounts?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} — {a.name}</SelectItem>)}</SelectContent>
+                      <SelectContent>{accounts?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code}: {a.name}</SelectItem>)}</SelectContent>
                     </Select>
                   )} />
                   <Input type="number" placeholder="Debit" {...register(`lines.${index}.debit`)} />

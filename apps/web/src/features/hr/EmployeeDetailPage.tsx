@@ -84,7 +84,7 @@ export default function EmployeeDetailPage() {
             <DetailRow label="Date of Birth" value={formatDate(data.dateOfBirth)} />
             <DetailRow label="National ID" value={<span className="font-mono">{data.nationalId}</span>} />
             <DetailRow label="Phone" value={data.phone} />
-            <DetailRow label="Email" value={data.email ?? '—'} />
+            <DetailRow label="Email" value={data.email ?? '-'} />
             <DetailRow label="Address" value={data.address} />
           </CardContent>
         </Card>
@@ -134,7 +134,7 @@ export default function EmployeeDetailPage() {
                   <div key={l.id} className="flex items-center justify-between py-1.5 border-b last:border-0 text-sm">
                     <div>
                       <span className="font-medium">{l.leaveType}</span>
-                      <span className="text-brand-muted ml-2">{formatDate(l.startDate)} – {formatDate(l.endDate)}</span>
+                      <span className="text-brand-muted ml-2">{formatDate(l.startDate)} to {formatDate(l.endDate)}</span>
                     </div>
                     <Badge variant={l.status === 'APPROVED' ? 'success' : l.status === 'REJECTED' ? 'destructive' : 'warning'}>
                       {l.status}
