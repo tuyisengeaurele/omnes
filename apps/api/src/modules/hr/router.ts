@@ -20,6 +20,12 @@ import {
 } from './schema';
 import { exportLimiter } from '../../middleware/rateLimiter';
 
+function computePAYE(gross: number): number {
+  if (gross <= 60000) return 0;
+  if (gross <= 100000) return Math.round((gross - 60000) * 0.2);
+  return Math.round(8000 + (gross - 100000) * 0.3);
+}
+
 export const router = Router();
 router.use(authenticate);
 
@@ -263,11 +269,22 @@ router.post('/payroll/run', requireRole('ADMIN', 'MANAGER', 'HR_OFFICER'), valid
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { month, year } = req.body as { month: number; year: number };
+
+      const existing = await prisma.payrollRun.findFirst({ where: { month, year } });
+      if (existing) {
+        res.status(409).json({
+          success: false,
+          message: `A payroll run for ${month}/${year} already exists (status: ${existing.status}).`,
+        });
+        return;
+      }
+
       const employees = await prisma.employee.findMany({ where: { status: 'ACTIVE' } });
       let totalAmount = 0;
       const entries = employees.map((emp) => {
         const gross = Number(emp.salary);
-        const net = gross;
+        const paye = computePAYE(gross);
+        const net = gross - paye;
         totalAmount += net;
         return { employeeId: emp.id, month, year, grossSalary: gross, netSalary: net };
       });
