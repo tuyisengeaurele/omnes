@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { authenticate } from '../../middleware/auth';
-import { exportLimiter } from '../../middleware/rateLimiter';
+import { exportLimiter, reportDataLimiter } from '../../middleware/rateLimiter';
 import { prisma } from '../../config/prisma';
 import ExcelJS from 'exceljs';
 
@@ -9,7 +9,7 @@ router.use(authenticate);
 
 // ─── DASHBOARD KPIs ───────────────────────────────────────────
 
-router.get('/reports/dashboard', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/reports/dashboard', reportDataLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -104,7 +104,7 @@ router.get('/reports/dashboard', async (req: Request, res: Response, next: NextF
 
 // ─── PRODUCTION REPORT ────────────────────────────────────────
 
-router.get('/reports/production', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/reports/production', reportDataLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const from = req.query['from'] ? new Date(req.query['from'] as string) : new Date(new Date().getFullYear(), 0, 1);
     const to = req.query['to'] ? new Date(req.query['to'] as string) : new Date();
@@ -140,7 +140,7 @@ router.get('/reports/production', async (req: Request, res: Response, next: Next
 
 // ─── SALES REPORT ─────────────────────────────────────────────
 
-router.get('/reports/sales', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/reports/sales', reportDataLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const from = req.query['from'] ? new Date(req.query['from'] as string) : new Date(new Date().getFullYear(), 0, 1);
     const to = req.query['to'] ? new Date(req.query['to'] as string) : new Date();
@@ -207,7 +207,7 @@ router.get('/reports/payroll', async (req: Request, res: Response, next: NextFun
 
 // ─── PROFIT & LOSS ────────────────────────────────────────────
 
-router.get('/reports/profit-loss', async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.get('/reports/profit-loss', reportDataLimiter, async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const from = req.query['from'] ? new Date(req.query['from'] as string) : new Date(new Date().getFullYear(), 0, 1);
     const to = req.query['to'] ? new Date(req.query['to'] as string) : new Date();
