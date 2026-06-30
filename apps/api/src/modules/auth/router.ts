@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { validate } from '../../middleware/validate';
 import { authenticate } from '../../middleware/auth';
-import { authLimiter } from '../../middleware/rateLimiter';
+import { authLimiter, refreshLimiter } from '../../middleware/rateLimiter';
 import { loginSchema, refreshSchema, changePasswordSchema } from './schema';
 import {
   loginUser,
@@ -48,7 +48,7 @@ router.post(
 
 router.post(
   '/refresh',
-  authLimiter,
+  refreshLimiter,
   validate(refreshSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

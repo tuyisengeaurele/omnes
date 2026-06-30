@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import axios from 'axios';
 import { api, setAccessToken } from '@/lib/axios';
 import type { AuthUser } from '@/types';
+
+const BASE_URL = (import.meta.env['VITE_API_URL'] as string | undefined) ?? 'http://localhost:3001/api';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -17,9 +20,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const restoreSession = useCallback(async () => {
     try {
-      // Cookie is sent automatically — no body needed
-      const res = await api.post('/auth/refresh', {});
-      const { accessToken } = res.data.data as { accessToken: string };
+      // Use plain axios (not the intercepted api instance) so a missing cookie
+      // does not trigger the 401 interceptor and consume the auth rate limit.
+      const res = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const { accessToken } = (res.data as { data: { accessToken: string } }).data;
       setAccessToken(accessToken);
       const meRes = await api.get('/auth/me');
       setUser(meRes.data.data as AuthUser);

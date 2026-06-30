@@ -8,6 +8,16 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Refresh tokens are authenticated by cookie — use a lenient limiter
+// separate from the strict brute-force protection on /login
+export const refreshLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: { success: false, message: 'Too many refresh attempts. Please log in again.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 export const generalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 200,
