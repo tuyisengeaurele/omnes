@@ -56,6 +56,9 @@ vi.mock('../config/prisma', () => ({
     employee: {
       findMany: vi.fn(),
     },
+    auditLog: {
+      create: vi.fn().mockResolvedValue({}),
+    },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   },
