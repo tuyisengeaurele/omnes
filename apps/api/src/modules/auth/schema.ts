@@ -6,7 +6,7 @@ export const loginSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().optional(),
 });
 
 export const changePasswordSchema = z.object({
@@ -14,6 +14,7 @@ export const changePasswordSchema = z.object({
   newPassword: z
     .string()
     .min(8)
+    .max(72) // bcrypt only hashes first 72 bytes
     .regex(/[A-Z]/, 'Must contain an uppercase letter')
     .regex(/[0-9]/, 'Must contain a number')
     .regex(/[^A-Za-z0-9]/, 'Must contain a special character'),

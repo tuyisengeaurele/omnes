@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { logger } from './config/logger';
 import { generalLimiter } from './middleware/rateLimiter';
@@ -9,7 +10,25 @@ import { errorHandler } from './middleware/errorHandler';
 
 const app = express();
 
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        baseUri: ["'self'"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  })
+);
+app.use(cookieParser());
 app.use(
   cors({
     origin: env.corsOrigin,
@@ -48,8 +67,14 @@ app.use('/api', assetsRouter);
 app.use('/api', reportsRouter);
 app.use('/api', settingsRouter);
 
-app.get('/api/health', (_req, res) => {
-  res.json({ success: true, data: { status: 'ok', timestamp: new Date().toISOString() } });
+app.get('/api/health', async (_req, res) => {
+  try {
+    const { prisma } = await import('./config/prisma');
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ success: true, data: { status: 'ok', db: 'connected', timestamp: new Date().toISOString() } });
+  } catch {
+    res.status(503).json({ success: false, data: { status: 'degraded', db: 'disconnected', timestamp: new Date().toISOString() } });
+  }
 });
 
 app.use(errorHandler);

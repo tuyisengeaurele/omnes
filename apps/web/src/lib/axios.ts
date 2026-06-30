@@ -54,19 +54,15 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const stored = localStorage.getItem('omnes_refresh');
-        if (!stored) throw new Error('No refresh token');
-        const res = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken: stored });
+        // Cookie is sent automatically via withCredentials — no body needed
+        const res = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
         const newToken = res.data.data.accessToken as string;
-        const newRefresh = res.data.data.refreshToken as string;
         setAccessToken(newToken);
-        localStorage.setItem('omnes_refresh', newRefresh);
         onRefreshed(newToken);
         originalRequest.headers['Authorization'] = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch {
         setAccessToken(null);
-        localStorage.removeItem('omnes_refresh');
         window.location.href = '/login';
         return Promise.reject(error);
       } finally {

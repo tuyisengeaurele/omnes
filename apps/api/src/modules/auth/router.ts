@@ -10,8 +10,17 @@ import {
   changeUserPassword,
 } from './service';
 import { prisma } from '../../config/prisma';
+import { logger } from '../../config/logger';
 
 export const router = Router();
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env['NODE_ENV'] === 'production',
+  sameSite: 'strict' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000,
+  path: '/',
+};
 
 router.post(
   '/login',
@@ -21,10 +30,16 @@ router.post(
     try {
       const result = await loginUser(req.body.email, req.body.password);
       if (!result) {
+        logger.warn('Failed login attempt', {
+          email: req.body.email as string,
+          ip: req.ip,
+          userAgent: req.headers['user-agent'],
+        });
         res.status(401).json({ success: false, message: 'Invalid email or password' });
         return;
       }
-      res.json({ success: true, data: result });
+      res.cookie('omnes_refresh', result.refreshToken, COOKIE_OPTIONS);
+      res.json({ success: true, data: { accessToken: result.accessToken, user: result.user } });
     } catch (err) {
       next(err);
     }
@@ -37,12 +52,21 @@ router.post(
   validate(refreshSchema),
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const result = await rotateRefreshToken(req.body.refreshToken);
-      if (!result) {
-        res.status(401).json({ success: false, message: 'Invalid or expired refresh token' });
+      const token =
+        (req.cookies as Record<string, string>)['omnes_refresh'] ??
+        (req.body?.refreshToken as string | undefined);
+      if (!token) {
+        res.status(401).json({ success: false, message: 'No refresh token' });
         return;
       }
-      res.json({ success: true, data: result });
+      const result = await rotateRefreshToken(token);
+      if (!result) {
+        res.clearCookie('omnes_refresh', { path: '/' });
+        res.status(401).json({ success: false, message: 'Session expired. Please log in again.' });
+        return;
+      }
+      res.cookie('omnes_refresh', result.refreshToken, COOKIE_OPTIONS);
+      res.json({ success: true, data: { accessToken: result.accessToken } });
     } catch (err) {
       next(err);
     }
@@ -51,12 +75,14 @@ router.post(
 
 router.post(
   '/logout',
+  authenticate,
   async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { refreshToken } = req.body as { refreshToken?: string };
-      if (refreshToken) {
-        await burnRefreshToken(refreshToken);
-      }
+      const token =
+        (req.cookies as Record<string, string>)['omnes_refresh'] ??
+        (req.body as { refreshToken?: string }).refreshToken;
+      if (token) await burnRefreshToken(token);
+      res.clearCookie('omnes_refresh', { path: '/' });
       res.json({ success: true, data: null });
     } catch (err) {
       next(err);
