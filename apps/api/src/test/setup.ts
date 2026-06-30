@@ -49,9 +49,14 @@ vi.mock('../config/prisma', () => ({
     },
     payrollRun: {
       findFirst: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
+      update: vi.fn(),
+    },
+    payrollEntry: {
+      updateMany: vi.fn(),
     },
     employee: {
       findMany: vi.fn(),
