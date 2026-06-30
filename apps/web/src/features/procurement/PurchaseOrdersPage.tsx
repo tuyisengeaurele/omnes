@@ -140,7 +140,7 @@ export default function PurchaseOrdersPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => setDialogOpen(o)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Purchase Order</DialogTitle>
           </DialogHeader>

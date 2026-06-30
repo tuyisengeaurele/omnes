@@ -118,7 +118,7 @@ export default function JournalPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => setDialogOpen(o)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>New Journal Entry</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">
