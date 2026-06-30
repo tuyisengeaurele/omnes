@@ -49,8 +49,9 @@ export default function LoginPage() {
     try {
       await login(data.email, data.password);
       void navigate('/dashboard');
-    } catch {
-      setError('Invalid email or password. Please try again.');
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      setError(msg ?? 'Invalid email or password. Please try again.');
     }
   };
 
