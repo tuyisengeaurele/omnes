@@ -156,7 +156,7 @@ export default function ProductTypesPage() {
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
         title="Delete Product Type"
-        description="Delete this product type? It must not be referenced by any active batches."
+        description="Delete this product type? Active batches using it will be affected."
         confirmLabel="Delete"
         onConfirm={() => deleteId && deleteMutation.mutate(deleteId)}
         isLoading={deleteMutation.isPending}

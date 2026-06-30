@@ -58,7 +58,7 @@ export default function ProfitLossPage() {
             <span className="font-medium text-dark">{formatCurrency(data?.revenue ?? 0)}</span>
           </div>
           <div className="flex items-center justify-between py-2 text-sm text-brand-muted">
-            <span>VAT Collected (informational)</span>
+            <span>VAT Collected (not included in costs)</span>
             <span>{formatCurrency(data?.vatCollected ?? 0)}</span>
           </div>
 
