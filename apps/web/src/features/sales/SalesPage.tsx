@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Sale {
   id: string;
@@ -54,6 +55,10 @@ const PAYMENT_COLORS: Record<string, 'destructive' | 'warning' | 'success'> = {
 };
 
 export default function SalesPage() {
+  useEffect(() => {
+    document.title = 'Sales | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -95,6 +100,11 @@ export default function SalesPage() {
       void qc.invalidateQueries({ queryKey: ['sales'] });
       setDialogOpen(false);
       reset({ saleDate: new Date().toISOString().split('T')[0], lines: [{ productTypeId: '', quantity: 1, unitPrice: 0 }] });
+      toast.success('Sale created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -139,7 +149,7 @@ export default function SalesPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => setDialogOpen(o)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Sale</DialogTitle>
           </DialogHeader>

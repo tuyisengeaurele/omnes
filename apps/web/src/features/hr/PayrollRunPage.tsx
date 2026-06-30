@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { api } from '@/lib/axios';
@@ -11,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 import { CheckCircle, Download } from 'lucide-react';
 
 const createSchema = z.object({
@@ -53,7 +55,14 @@ function NewPayrollRunForm() {
 
   const mutation = useMutation({
     mutationFn: (values: CreateForm) => api.post('/payroll', values),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['payroll-runs'] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['payroll-runs'] });
+      toast.success('Payroll run created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   return (
@@ -116,7 +125,14 @@ function PayrollRunDetail({ id }: { id: string }) {
 
   const approveMutation = useMutation({
     mutationFn: () => api.patch(`/payroll/${id}/approve`),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ['payroll-run', id] }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['payroll-run', id] });
+      toast.success('Payroll run approved.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
+    },
   });
 
   const handleExport = async () => {
@@ -196,6 +212,10 @@ function PayrollRunDetail({ id }: { id: string }) {
 
 export default function PayrollRunPage() {
   const { id } = useParams<{ id?: string }>();
+  useEffect(() => {
+    document.title = 'Payroll Run | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   if (!id || id === 'run') return <NewPayrollRunForm />;
   return <PayrollRunDetail id={id} />;
 }

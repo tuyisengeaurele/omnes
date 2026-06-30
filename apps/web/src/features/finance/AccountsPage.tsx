@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { PageHeader } from '@/components/shared/PageHeader';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Account {
   id: string;
@@ -41,6 +42,10 @@ const TYPE_COLORS: Record<string, 'success' | 'destructive' | 'secondary' | 'war
 };
 
 export default function AccountsPage() {
+  useEffect(() => {
+    document.title = 'Chart of Accounts | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -63,6 +68,11 @@ export default function AccountsPage() {
       void qc.invalidateQueries({ queryKey: ['accounts'] });
       setDialogOpen(false);
       reset({ type: 'ASSET' });
+      toast.success('Account created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface PurchaseOrder {
   id: string;
@@ -46,6 +47,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'secondary' | 'success' | 'destr
 };
 
 export default function PurchaseOrdersPage() {
+  useEffect(() => {
+    document.title = 'Purchase Orders | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -87,6 +92,11 @@ export default function PurchaseOrdersPage() {
       void qc.invalidateQueries({ queryKey: ['purchase-orders'] });
       setDialogOpen(false);
       reset({ orderDate: new Date().toISOString().split('T')[0], lines: [{ rawMaterialId: '', quantity: 1, unitPrice: 0 }] });
+      toast.success('Purchase order created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -130,7 +140,7 @@ export default function PurchaseOrdersPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => setDialogOpen(o)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Purchase Order</DialogTitle>
           </DialogHeader>

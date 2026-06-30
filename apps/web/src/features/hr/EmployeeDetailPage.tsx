@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
@@ -48,6 +49,10 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export default function EmployeeDetailPage() {
+  useEffect(() => {
+    document.title = 'Employee Detail | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading } = useQuery({

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { Plus, Eye } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 import { Link } from 'react-router-dom';
+import { toast } from 'sonner';
 
 interface Batch {
   id: string;
@@ -46,6 +47,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'secondary' | 'success' | 'destr
 };
 
 export default function BatchesPage() {
+  useEffect(() => {
+    document.title = 'Production Batches | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -86,6 +91,11 @@ export default function BatchesPage() {
       void qc.invalidateQueries({ queryKey: ['batches'] });
       setDialogOpen(false);
       reset();
+      toast.success('Batch created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

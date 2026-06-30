@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -14,6 +14,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface Expense {
   id: string;
@@ -32,6 +33,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function ExpensesPage() {
+  useEffect(() => {
+    document.title = 'Expenses | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -56,6 +61,11 @@ export default function ExpensesPage() {
       void qc.invalidateQueries({ queryKey: ['expenses'] });
       setDialogOpen(false);
       reset({ category: 'OTHER', expenseDate: new Date().toISOString().split('T')[0] });
+      toast.success('Expense recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

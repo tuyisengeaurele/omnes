@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -13,6 +13,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
 import { formatDateTime } from '@/lib/utils';
 
 interface StockMovement {
@@ -39,6 +40,10 @@ const TYPE_COLORS: Record<string, 'success' | 'destructive' | 'warning'> = {
 };
 
 export default function MovementsPage() {
+  useEffect(() => {
+    document.title = 'Inventory Movements | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -72,6 +77,11 @@ export default function MovementsPage() {
       void qc.invalidateQueries({ queryKey: ['raw-materials'] });
       setDialogOpen(false);
       reset({ type: 'IN' });
+      toast.success('Movement recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -13,6 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Trash2 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface JournalEntry {
   id: string;
@@ -36,6 +37,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function JournalPage() {
+  useEffect(() => {
+    document.title = 'Journal Entries | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -73,6 +78,11 @@ export default function JournalPage() {
       void qc.invalidateQueries({ queryKey: ['journal-entries'] });
       setDialogOpen(false);
       reset({ entryDate: new Date().toISOString().split('T')[0], lines: [{ accountId: '', debit: 0, credit: 0 }, { accountId: '', debit: 0, credit: 0 }] });
+      toast.success('Journal entry posted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -108,7 +118,7 @@ export default function JournalPage() {
       />
 
       <Dialog open={dialogOpen} onOpenChange={(o) => setDialogOpen(o)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>New Journal Entry</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit((v) => mutation.mutate(v))} className="space-y-4 mt-2">
             <div className="grid grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { ArrowLeft, Printer, Plus } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type { CompanySettings } from '@/types';
+import { toast } from 'sonner';
 
 interface SaleLine {
   id: string;
@@ -120,6 +121,10 @@ function PrintableDocument({ sale, company }: { sale: SaleDetail; company: Compa
 }
 
 export default function SaleDetailPage() {
+  useEffect(() => {
+    document.title = 'Sale Detail | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -151,6 +156,11 @@ export default function SaleDetailPage() {
       void qc.invalidateQueries({ queryKey: ['sale', id] });
       setPaymentOpen(false);
       paymentForm.reset({ paymentDate: new Date().toISOString().split('T')[0], method: 'CASH' });
+      toast.success('Payment recorded.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 

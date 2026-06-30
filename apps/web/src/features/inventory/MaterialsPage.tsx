@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -13,6 +13,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface RawMaterial {
   id: string;
@@ -32,6 +33,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function MaterialsPage() {
+  useEffect(() => {
+    document.title = 'Raw Materials | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -61,6 +66,11 @@ export default function MaterialsPage() {
       setDialogOpen(false);
       reset();
       setEditingId(null);
+      toast.success(editingId ? 'Material updated.' : 'Material created.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
@@ -69,6 +79,11 @@ export default function MaterialsPage() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['raw-materials'] });
       setDeleteId(null);
+      toast.success('Material deleted.');
+    },
+    onError: (err: unknown) => {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message ?? 'Something went wrong. Please try again.';
+      toast.error(msg);
     },
   });
 
