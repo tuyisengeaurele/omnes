@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -47,6 +47,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'secondary' | 'success' | 'destr
 };
 
 export default function BatchesPage() {
+  useEffect(() => {
+    document.title = 'Production Batches | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

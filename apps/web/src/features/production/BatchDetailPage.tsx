@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
@@ -57,6 +57,10 @@ const usageSchema = z.object({
 type UsageForm = z.infer<typeof usageSchema>;
 
 export default function BatchDetailPage() {
+  useEffect(() => {
+    document.title = 'Batch Detail | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [outputDialogOpen, setOutputDialogOpen] = useState(false);

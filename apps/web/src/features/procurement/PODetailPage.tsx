@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
@@ -55,6 +55,10 @@ const paymentSchema = z.object({
 type PaymentForm = z.infer<typeof paymentSchema>;
 
 export default function PODetailPage() {
+  useEffect(() => {
+    document.title = 'Purchase Order Detail | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { id } = useParams<{ id: string }>();
   const qc = useQueryClient();
   const [receiveOpen, setReceiveOpen] = useState(false);

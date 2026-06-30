@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -45,6 +45,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'success' | 'destructive' | 'sec
 };
 
 export default function LeavePage() {
+  useEffect(() => {
+    document.title = 'Leave Requests | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { user } = useAuth();
   const qc = useQueryClient();
   const [page, setPage] = useState(1);

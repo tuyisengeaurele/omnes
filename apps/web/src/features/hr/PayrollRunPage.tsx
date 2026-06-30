@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 import { api } from '@/lib/axios';
@@ -211,6 +212,10 @@ function PayrollRunDetail({ id }: { id: string }) {
 
 export default function PayrollRunPage() {
   const { id } = useParams<{ id?: string }>();
+  useEffect(() => {
+    document.title = 'Payroll Run | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   if (!id || id === 'run') return <NewPayrollRunForm />;
   return <PayrollRunDetail id={id} />;
 }

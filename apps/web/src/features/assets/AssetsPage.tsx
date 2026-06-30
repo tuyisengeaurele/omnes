@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -42,6 +42,10 @@ const STATUS_COLORS: Record<string, 'success' | 'warning' | 'secondary' | 'destr
 };
 
 export default function AssetsPage() {
+  useEffect(() => {
+    document.title = 'Fixed Assets | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

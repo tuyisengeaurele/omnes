@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { DataTable, type Column } from '@/components/shared/DataTable';
@@ -27,6 +27,10 @@ const STATUS_COLORS: Record<string, 'warning' | 'success' | 'secondary'> = {
 };
 
 export default function PayrollPage() {
+  useEffect(() => {
+    document.title = 'Payroll | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 

@@ -40,6 +40,10 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function CompanySettingsPage() {
+  useEffect(() => {
+    document.title = 'Company Settings | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const qc = useQueryClient();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN';

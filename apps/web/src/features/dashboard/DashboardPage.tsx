@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/axios';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,6 +74,10 @@ function KpiCard({ title, value, subtitle, icon: Icon, trend }: {
 }
 
 export default function DashboardPage() {
+  useEffect(() => {
+    document.title = 'Dashboard | OMNES ERP';
+    return () => { document.title = 'OMNES ERP'; };
+  }, []);
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard'],
     queryFn: async () => {
