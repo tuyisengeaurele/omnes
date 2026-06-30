@@ -1,0 +1,44 @@
+﻿name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  api:
+    name: API - typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --include-workspace-root
+        working-directory: .
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+
+  web:
+    name: Web - typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --include-workspace-root
+        working-directory: .
+      - run: npx tsc --noEmit
+      - run: npm run build
+        env:
+          VITE_API_URL: http://localhost:3001/api
