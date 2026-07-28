@@ -57,7 +57,7 @@
 }
 ```
 
-Note: `main` points at `index.js`. Because `"type": "module"` is set repo-wide, electron-vite's main-process build emits ESM `import` syntax into a plain `.js` file (Node/Electron treat `.js` as ESM when `package.json` has `"type": "module"`) — confirmed by running the actual build. The preload build is different: electron-vite always names the preload entry `index.mjs` regardless of package type (verified the same way). This asymmetry is real, not a typo — `main` uses `.js`, `preload` uses `.mjs`.
+Note: `main` points at `index.js`. Because `"type": "module"` is set repo-wide, electron-vite's main-process build emits ESM `import` syntax into a plain `.js` file (Node/Electron treat `.js` as ESM when `package.json` has `"type": "module"`) — confirmed by running the actual build. The preload build is different again: it's explicitly forced to CommonJS output named `index.cjs` (see Task 5) because Electron's sandboxed preload loader can't execute ESM at all — a `.mjs` preload silently fails to load under `sandbox: true`. Three different outcomes for three targets: `main` → `.js` (ESM), `preload` → `.cjs` (CJS, forced), `renderer` → bundled into `index.html`'s script tag. None of this is a typo — verify against Task 5 and Task 7 if it looks inconsistent.
 
 - [ ] **Step 2: Write .nvmrc**
 
@@ -308,6 +308,10 @@ export default defineConfig({
     build: {
       rollupOptions: {
         input: resolve(root, 'electron/preload/index.ts'),
+        output: {
+          format: 'cjs',
+          entryFileNames: '[name].cjs',
+        },
       },
     },
   },
@@ -333,6 +337,8 @@ export default defineConfig({
 Note: use `import.meta.dirname` (stable in Node 22, works correctly regardless of how the ESM config file is loaded) rather than `__dirname`, since `package.json` has `"type": "module"` and this config file is loaded directly by the `electron-vite` CLI's config loader, not run through electron-vite's own main/preload CJS build step.
 
 Note: `resolve.alias` for `@shared` must be repeated under `main` and `preload`, not just `renderer` — each of electron-vite's three build targets (main, preload, renderer) resolves aliases independently. Both `electron/main/ipc/index.ts` and `electron/preload/index.ts` import from `@shared/ipc`, so both configs need the alias or the build fails with "Rollup failed to resolve import".
+
+Note: the preload build's output is forced to `format: 'cjs'` with an explicit `.cjs` extension, overriding electron-vite's default (which would otherwise emit ESM `.mjs`, matching `package.json`'s `"type": "module"`, the same as the renderer's default). This is required, not a style choice: Electron's sandboxed preload loader (`sandbox: true`, set in Task 7's `BrowserWindow` config — a real security requirement, not optional) runs preload scripts through a restricted bundle that cannot execute `import`/ESM syntax at all. An ESM preload script fails silently at runtime with `Unable to load preload script ... SyntaxError: Cannot use import statement outside a module`, which surfaces as `window.omnes` simply being `undefined` in the renderer with no visible error unless you check the main process's console output — this was caught by writing an ad-hoc IPC debug script and inspecting main-process console output directly, not by typecheck or lint. The main process build stays ESM (`.js`, since it isn't sandboxed the same way and Electron's main process fully supports ESM) — only the preload target needs this override.
 
 - [ ] **Step 2: Add electron.vite.config.ts to tsconfig.node.json's include array**
 
@@ -460,7 +466,7 @@ function createMainWindow(): BrowserWindow {
     autoHideMenuBar: true,
     backgroundColor: '#0b0d12',
     webPreferences: {
-      preload: join(dirname, '../preload/index.mjs'),
+      preload: join(dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -1521,6 +1527,8 @@ test('launches the shell and resolves the app version over IPC', async () => {
 
 Run: `pnpm test:e2e`
 Expected: PASS — the built app launches, the title, sidebar label, and IPC-sourced version badge are all visible.
+
+Note: this test is what actually caught the sandboxed-preload-can't-load-ESM bug described in Task 5 — the first run failed on the version-badge assertion because `window.omnes` was `undefined`. If this test fails the same way after the Task 5 fix is in place, check that `out/preload/index.cjs` exists (not `.mjs`) and that `electron/main/index.ts` references it correctly, per Task 7. Also note: `app.getVersion()` can report Electron's own framework version (e.g. `43.2.0`) rather than this app's `package.json` version (`0.1.0`) when the entry script is launched ad hoc (as this test does) rather than through electron-builder's packaged app structure — this is a harmless quirk of the test harness, not a bug, and doesn't affect the assertion since it only checks the `v<number>.<number>.<number>` format, not the specific value.
 
 - [ ] **Step 4: Commit**
 
