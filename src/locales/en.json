@@ -1,0 +1,11 @@
+{
+  "app.name": "OMNES",
+  "shell.loading": "Loading...",
+  "shell.comingSoon": "Coming soon",
+  "modules.core": "Core",
+  "modules.pos": "Point of Sale",
+  "modules.inventory": "Inventory",
+  "modules.crm": "Customers",
+  "modules.reports": "Reports",
+  "modules.admin": "Administration"
+}

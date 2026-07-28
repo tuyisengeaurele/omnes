@@ -1,0 +1,21 @@
+.splash {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  background-color: var(--color-background);
+}
+
+.logo {
+  width: 96px;
+  height: 96px;
+  object-fit: contain;
+}
+
+.status {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
