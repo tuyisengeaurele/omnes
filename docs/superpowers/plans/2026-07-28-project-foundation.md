@@ -34,7 +34,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "main": "./out/main/index.mjs",
+  "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -61,7 +61,7 @@
 }
 ```
 
-Note: `main` points at `index.mjs`, not `index.js`. Because `"type": "module"` is set, electron-vite builds the main process as ESM and names its entry `[name].mjs` — this must match what Task 7 actually produces.
+Note: `main` points at `index.js`. Because `"type": "module"` is set repo-wide, electron-vite's main-process build emits ESM `import` syntax into a plain `.js` file (Node/Electron treat `.js` as ESM when `package.json` has `"type": "module"`) — confirmed by running the actual build. The preload build is different: electron-vite always names the preload entry `index.mjs` regardless of package type (verified the same way). This asymmetry is real, not a typo — `main` uses `.js`, `preload` uses `.mjs`.
 
 - [ ] **Step 2: Write .nvmrc**
 
@@ -1496,7 +1496,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 test('launches the shell and resolves the app version over IPC', async () => {
   const app = await electron.launch({
-    args: [path.resolve(process.cwd(), 'out/main/index.mjs')],
+    args: [path.resolve(process.cwd(), 'out/main/index.js')],
   });
 
   const window = await app.firstWindow();
