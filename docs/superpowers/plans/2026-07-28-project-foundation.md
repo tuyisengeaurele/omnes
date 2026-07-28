@@ -17,6 +17,7 @@
 ### Task 1: Package manifest and scripts
 
 **Files:**
+
 - Create: `package.json`
 - Create: `.nvmrc`
 
@@ -50,13 +51,8 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{css,json,md,yml,yaml}": [
-      "prettier --write"
-    ]
+    "*.{ts,tsx}": ["eslint --fix", "prettier --write"],
+    "*.{css,json,md,yml,yaml}": ["prettier --write"]
   }
 }
 ```
@@ -82,12 +78,14 @@ git commit -m "Initialize package manifest and scripts"
 ### Task 2: Install dependencies
 
 **Files:**
+
 - Modify: `package.json`
 - Create: `pnpm-lock.yaml`
 
 - [ ] **Step 1: Install runtime dependencies**
 
 Run:
+
 ```bash
 pnpm add react react-dom react-router-dom @tanstack/react-query zustand i18next react-i18next electron-log framer-motion
 ```
@@ -95,6 +93,7 @@ pnpm add react react-dom react-router-dom @tanstack/react-query zustand i18next 
 - [ ] **Step 2: Install dev dependencies**
 
 Run:
+
 ```bash
 pnpm add -D electron electron-vite vite @vitejs/plugin-react electron-builder typescript typescript-eslint @eslint/js eslint eslint-plugin-react eslint-plugin-react-hooks eslint-plugin-react-refresh eslint-config-prettier prettier husky lint-staged vitest jsdom @testing-library/react @testing-library/jest-dom @playwright/test @types/react @types/react-dom @types/node
 ```
@@ -116,6 +115,7 @@ git commit -m "Install core dependencies"
 ### Task 3: Move branding assets into the repo
 
 **Files:**
+
 - Create: `assets/branding/logo-full.png`
 - Create: `assets/branding/logo-transparent.png`
 - Delete: `omnes_logo.png`, `omes_logo_no_bg.png` (root copies)
@@ -123,6 +123,7 @@ git commit -m "Install core dependencies"
 - [ ] **Step 1: Move the files**
 
 Run:
+
 ```bash
 mkdir -p assets/branding
 mv omnes_logo.png assets/branding/logo-full.png
@@ -146,6 +147,7 @@ git commit -m "Move branding assets into versioned assets directory"
 ### Task 4: Shared IPC types and TypeScript project configuration
 
 **Files:**
+
 - Create: `shared/ipc.ts`
 - Create: `tsconfig.json`
 - Create: `tsconfig.node.json`
@@ -169,10 +171,7 @@ export interface AppApi {
 ```json
 {
   "files": [],
-  "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "./tsconfig.web.json" }
-  ]
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./tsconfig.web.json" }]
 }
 ```
 
@@ -198,11 +197,7 @@ export interface AppApi {
       "@shared/*": ["shared/*"]
     }
   },
-  "include": [
-    "electron/main/**/*.ts",
-    "electron/preload/**/*.ts",
-    "shared/**/*.ts"
-  ]
+  "include": ["electron/main/**/*.ts", "electron/preload/**/*.ts", "shared/**/*.ts"]
 }
 ```
 
@@ -278,6 +273,7 @@ git commit -m "Add shared IPC types and TypeScript project configuration"
 ### Task 5: electron-vite build configuration
 
 **Files:**
+
 - Create: `electron.vite.config.ts`
 - Modify: `tsconfig.node.json` (add `electron.vite.config.ts` to `include`)
 
@@ -368,6 +364,7 @@ git commit -m "Configure electron-vite build targets"
 ### Task 6: Vitest configuration and Testing Library setup
 
 **Files:**
+
 - Create: `vitest.config.ts`
 - Create: `tests/unit/setup.ts`
 
@@ -423,6 +420,7 @@ git commit -m "Configure Vitest with jsdom and Testing Library"
 ### Task 7: Main process bootstrap
 
 **Files:**
+
 - Create: `electron/main/ipc/index.ts`
 - Create: `electron/main/index.ts`
 
@@ -541,6 +539,7 @@ git commit -m "Add secure main process bootstrap with logging and CSP"
 ### Task 8: Preload script
 
 **Files:**
+
 - Create: `electron/preload/index.ts`
 
 - [ ] **Step 1: Write electron/preload/index.ts**
@@ -573,6 +572,7 @@ git commit -m "Add preload bridge exposing typed app API"
 ### Task 9: i18n setup and locale files
 
 **Files:**
+
 - Create: `src/locales/en.json`
 - Create: `src/locales/rw.json`
 - Create: `src/locales/fr.json`
@@ -661,6 +661,7 @@ git commit -m "Wire i18next with English, Kinyarwanda, and French shell strings"
 ### Task 10: Theme tokens and global styles
 
 **Files:**
+
 - Create: `src/styles/tokens.css`
 - Create: `src/styles/global.css`
 
@@ -739,6 +740,7 @@ git commit -m "Add dark-theme base tokens and global styles"
 ### Task 11: Shared class-name utility, with a real unit test
 
 **Files:**
+
 - Create: `tests/unit/cn.test.ts`
 - Create: `src/lib/cn.ts`
 
@@ -791,6 +793,7 @@ git commit -m "Add cn class-name utility"
 ### Task 12: Zustand UI store
 
 **Files:**
+
 - Create: `src/lib/store/uiStore.ts`
 
 - [ ] **Step 1: Write src/lib/store/uiStore.ts**
@@ -805,8 +808,7 @@ interface UiState {
 
 export const useUiStore = create<UiState>((set) => ({
   isSidebarCollapsed: false,
-  toggleSidebar: () =>
-    set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+  toggleSidebar: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 }));
 ```
 
@@ -822,6 +824,7 @@ git commit -m "Add Zustand UI store for sidebar state"
 ### Task 13: Error boundary component
 
 **Files:**
+
 - Create: `src/components/ErrorBoundary.tsx`
 
 - [ ] **Step 1: Write src/components/ErrorBoundary.tsx**
@@ -874,6 +877,7 @@ git commit -m "Add top-level renderer error boundary"
 ### Task 14: Splash screen component
 
 **Files:**
+
 - Create: `src/app/SplashScreen.module.css`
 - Create: `src/app/SplashScreen.tsx`
 
@@ -936,6 +940,7 @@ git commit -m "Add splash screen"
 ### Task 15: AppShell component, with a real render test
 
 **Files:**
+
 - Create: `tests/unit/AppShell.test.tsx`
 - Create: `src/app/AppShell.module.css`
 - Create: `src/app/AppShell.tsx`
@@ -1152,6 +1157,7 @@ git commit -m "Add AppShell layout with module sidebar"
 ### Task 16: Dashboard placeholder and App root wiring
 
 **Files:**
+
 - Create: `src/modules/core/Dashboard.module.css`
 - Create: `src/modules/core/Dashboard.tsx`
 - Create: `src/app/App.tsx`
@@ -1316,6 +1322,7 @@ Press `Ctrl+C` in the terminal running `pnpm dev`.
 ### Task 18: ESLint and Prettier configuration
 
 **Files:**
+
 - Create: `eslint.config.js`
 - Create: `.prettierrc`
 - Create: `.prettierignore`
@@ -1402,6 +1409,7 @@ git commit -m "Add ESLint and Prettier configuration"
 ### Task 19: Husky and lint-staged pre-commit hook
 
 **Files:**
+
 - Create: `.husky/pre-commit`
 
 - [ ] **Step 1: Initialize Husky**
@@ -1431,6 +1439,7 @@ git commit -m "Add Husky pre-commit hook running lint-staged"
 ### Task 20: electron-builder packaging sanity build
 
 **Files:**
+
 - Create: `electron-builder.yml`
 
 - [ ] **Step 1: Write electron-builder.yml**
@@ -1469,6 +1478,7 @@ git commit -m "Add electron-builder sanity packaging config"
 ### Task 21: Playwright end-to-end smoke test
 
 **Files:**
+
 - Create: `playwright.config.ts`
 - Create: `tests/e2e/app.spec.ts`
 
@@ -1524,6 +1534,7 @@ git commit -m "Add Playwright end-to-end smoke test"
 ### Task 22: GitHub Actions CI workflow
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 - [ ] **Step 1: Write .github/workflows/ci.yml**
@@ -1575,6 +1586,7 @@ git commit -m "Add CI workflow for lint, typecheck, test, and build"
 ### Task 23: Documentation
 
 **Files:**
+
 - Create: `README.md`
 - Create: `docs/architecture.md`
 - Create: `.env.example`
@@ -1614,15 +1626,15 @@ This starts the Electron app with hot reload on the renderer.
 
 ## Scripts
 
-| Script              | Purpose                                          |
-| -------------------- | ------------------------------------------------ |
-| `pnpm dev`            | Run the app in development with hot reload       |
-| `pnpm build`          | Build main, preload, and renderer for production |
-| `pnpm typecheck`      | Type-check main, preload, and renderer           |
-| `pnpm lint`           | Lint the codebase                                |
-| `pnpm test`           | Run unit tests                                   |
-| `pnpm test:e2e`       | Build, then run Playwright end-to-end tests      |
-| `pnpm package`        | Produce an unpacked build via electron-builder   |
+| Script           | Purpose                                          |
+| ---------------- | ------------------------------------------------ |
+| `pnpm dev`       | Run the app in development with hot reload       |
+| `pnpm build`     | Build main, preload, and renderer for production |
+| `pnpm typecheck` | Type-check main, preload, and renderer           |
+| `pnpm lint`      | Lint the codebase                                |
+| `pnpm test`      | Run unit tests                                   |
+| `pnpm test:e2e`  | Build, then run Playwright end-to-end tests      |
+| `pnpm package`   | Produce an unpacked build via electron-builder   |
 
 ## Project status
 
@@ -1732,6 +1744,7 @@ git commit -m "Add README and architecture documentation"
 - [ ] **Step 1: Run the full local verification suite**
 
 Run:
+
 ```bash
 pnpm lint
 pnpm typecheck
@@ -1739,6 +1752,7 @@ pnpm test
 pnpm build
 pnpm test:e2e
 ```
+
 Expected: every command exits 0.
 
 - [ ] **Step 2: Push the branch**
