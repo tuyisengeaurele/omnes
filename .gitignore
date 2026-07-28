@@ -3,6 +3,7 @@ dist/
 dist-electron/
 release/
 out/
+generated/
 
 .env
 .env.local

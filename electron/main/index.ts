@@ -1,7 +1,9 @@
+import 'dotenv/config';
 import { app, BrowserWindow, session, shell } from 'electron';
 import { join } from 'node:path';
 import log from 'electron-log/main';
 import { registerIpcHandlers } from './ipc';
+import { disconnectDatabase } from './services/core/database';
 
 const isDev = !app.isPackaged;
 const dirname = import.meta.dirname;
@@ -71,6 +73,12 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  disconnectDatabase().catch((error: unknown) => {
+    log.error('Failed to disconnect database cleanly', error);
+  });
 });
 
 process.on('uncaughtException', (error) => {
