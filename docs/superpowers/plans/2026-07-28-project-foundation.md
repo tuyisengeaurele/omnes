@@ -6,7 +6,7 @@
 
 **Architecture:** electron-vite coordinates three builds (main, preload, renderer). The main process owns window/security/logging and an empty per-module `services/` boundary. The renderer is a React Router shell (splash → sidebar layout with six disabled module placeholders) styled with CSS Modules over a small dark-theme token set, translated via i18next. No database, auth, or business logic exists yet — see the approved spec for what's explicitly deferred.
 
-**Tech Stack:** Electron, electron-vite, React 18, TypeScript, React Router, TanStack Query, Zustand, i18next/react-i18next, Framer Motion, electron-log, ESLint (flat config) + Prettier + Husky/lint-staged, Vitest + Testing Library, Playwright (Electron), electron-builder, GitHub Actions.
+**Tech Stack:** Electron, electron-vite, React 19, TypeScript, React Router, TanStack Query, Zustand, i18next/react-i18next, Framer Motion, electron-log, ESLint (flat config) + Prettier + Husky/lint-staged, Vitest + Testing Library, Playwright (Electron), electron-builder, GitHub Actions.
 
 **Note on TDD in this plan:** Per the approved spec's Testing section, unit/e2e tests cover the pieces that have real logic to test — the `cn` utility, the `AppShell` sidebar rendering, and an end-to-end app launch. Config and wiring files (tsconfig, electron-vite config, CSS, IPC plumbing) don't have a meaningful "red" state to write a failing test against; those tasks are verified instead by running the relevant command (`typecheck`, `lint`, `dev`, `build`) and checking real output.
 
