@@ -680,10 +680,13 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm exec playwright test
+      - name: Install Xvfb for headless Electron
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - run: xvfb-run --auto-servernum pnpm exec playwright test
 ```
 
-Two changes beyond adding Postgres: the runner switches from `windows-latest` to `ubuntu-latest` (GitHub Actions service containers are a Linux-runner-only feature), and `DATABASE_URL` is set as a job-level env var pointing at the service container — no `.env` file needed in CI since the app reads directly from `process.env`, which GitHub Actions populates from the `env:` block for every step. `omnes_ci_password` is not a real secret — a throwaway credential for a container that only exists for one CI run.
+Three changes beyond adding Postgres: the runner switches from `windows-latest` to `ubuntu-latest` (GitHub Actions service containers are a Linux-runner-only feature); `DATABASE_URL` is set as a job-level env var pointing at the service container — no `.env` file needed in CI since the app reads directly from `process.env`, which GitHub Actions populates from the `env:` block for every step (`omnes_ci_password` is not a real secret — a throwaway credential for a container that only exists for one CI run); and the Playwright step runs under `xvfb-run`, since launching a real Electron window on a headless Linux runner needs a virtual framebuffer — without it, `electron.launch()` fails to open a window at all. This can't be verified locally (this machine is Windows); it's verified by actually pushing and checking the GitHub Actions run in Task 14, not assumed.
 
 No `prisma migrate deploy` step is included — there are no migration files yet (Task 3 confirmed zero models means zero migrations). Add that step when the first real migration exists.
 

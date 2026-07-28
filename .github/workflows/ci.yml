@@ -8,7 +8,23 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: omnes
+          POSTGRES_PASSWORD: omnes_ci_password
+          POSTGRES_DB: omnes_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://omnes:omnes_ci_password@localhost:5432/omnes_test?schema=public
     steps:
       - uses: actions/checkout@v4
 
@@ -31,4 +47,7 @@ jobs:
 
       - run: pnpm build
 
-      - run: pnpm exec playwright test
+      - name: Install Xvfb for headless Electron
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - run: xvfb-run --auto-servernum pnpm exec playwright test
