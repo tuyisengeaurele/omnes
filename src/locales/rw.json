@@ -2,6 +2,8 @@
   "app.name": "OMNES",
   "shell.loading": "Turacyategura...",
   "shell.comingSoon": "Bizaza vuba",
+  "shell.databaseConnected": "Ububiko bw'amakuru buhujwe",
+  "shell.databaseOffline": "Ububiko bw'amakuru ntibuhuye",
   "modules.core": "Ibanze",
   "modules.pos": "Kugurisha",
   "modules.inventory": "Ububiko",

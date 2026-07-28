@@ -2,6 +2,8 @@
   "app.name": "OMNES",
   "shell.loading": "Loading...",
   "shell.comingSoon": "Coming soon",
+  "shell.databaseConnected": "Database connected",
+  "shell.databaseOffline": "Database offline",
   "modules.core": "Core",
   "modules.pos": "Point of Sale",
   "modules.inventory": "Inventory",

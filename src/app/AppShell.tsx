@@ -16,6 +16,7 @@ const MODULE_NAV = [
 export function AppShell() {
   const { t } = useTranslation();
   const [version, setVersion] = useState('');
+  const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean | null>(null);
   const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
 
@@ -34,11 +35,31 @@ export function AppShell() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    window.omnes
+      ?.checkDatabaseHealth()
+      .then((result) => {
+        if (!cancelled) setIsDatabaseConnected(result.connected);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to check database health', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className={styles.shell}>
       <header className={styles.titlebar}>
         <span className={styles.brand}>{t('app.name')}</span>
         {version && <span className={styles.version}>v{version}</span>}
+        {isDatabaseConnected !== null && (
+          <span className={styles.dbStatus} data-connected={isDatabaseConnected}>
+            {t(isDatabaseConnected ? 'shell.databaseConnected' : 'shell.databaseOffline')}
+          </span>
+        )}
       </header>
       <div className={styles.body}>
         <nav className={styles.sidebar} data-collapsed={isSidebarCollapsed} aria-label="Modules">
