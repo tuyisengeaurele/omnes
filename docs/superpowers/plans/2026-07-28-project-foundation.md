@@ -898,7 +898,7 @@ import { useTranslation } from 'react-i18next';
 import logo from '@branding/logo-transparent.png';
 import styles from './SplashScreen.module.css';
 
-export function SplashScreen(): JSX.Element {
+export function SplashScreen() {
   const { t } = useTranslation();
 
   return (
@@ -909,6 +909,8 @@ export function SplashScreen(): JSX.Element {
   );
 }
 ```
+
+Note: component return types are left to inference (no `: JSX.Element` annotation). With the installed React 19 types, the global `JSX` namespace isn't auto-available under `"jsx": "react-jsx"` without an extra import, and inference already gives the same safety with less noise. This applies to every component in this plan (`SplashScreen`, `AppShell`, `Dashboard`, `App`).
 
 - [ ] **Step 3: Commit**
 
@@ -1070,7 +1072,7 @@ const MODULE_NAV = [
   { key: 'modules.admin', enabled: false },
 ] as const;
 
-export function AppShell(): JSX.Element {
+export function AppShell() {
   const { t } = useTranslation();
   const [version, setVersion] = useState('');
   const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
@@ -1162,7 +1164,7 @@ git commit -m "Add AppShell layout with module sidebar"
 import { useTranslation } from 'react-i18next';
 import styles from './Dashboard.module.css';
 
-export function Dashboard(): JSX.Element {
+export function Dashboard() {
   const { t } = useTranslation();
 
   return (
@@ -1185,7 +1187,7 @@ import { SplashScreen } from './SplashScreen';
 import { AppShell } from './AppShell';
 import { Dashboard } from '../modules/core/Dashboard';
 
-export function App(): JSX.Element {
+export function App() {
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
