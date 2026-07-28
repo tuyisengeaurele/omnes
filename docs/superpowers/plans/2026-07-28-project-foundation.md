@@ -286,18 +286,20 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'electron-vite';
 import react from '@vitejs/plugin-react';
 
+const root = import.meta.dirname;
+
 export default defineConfig({
   main: {
     build: {
       rollupOptions: {
-        input: resolve(__dirname, 'electron/main/index.ts'),
+        input: resolve(root, 'electron/main/index.ts'),
       },
     },
   },
   preload: {
     build: {
       rollupOptions: {
-        input: resolve(__dirname, 'electron/preload/index.ts'),
+        input: resolve(root, 'electron/preload/index.ts'),
       },
     },
   },
@@ -305,20 +307,22 @@ export default defineConfig({
     root: 'src',
     resolve: {
       alias: {
-        '@': resolve(__dirname, 'src'),
-        '@shared': resolve(__dirname, 'shared'),
-        '@branding': resolve(__dirname, 'assets/branding'),
+        '@': resolve(root, 'src'),
+        '@shared': resolve(root, 'shared'),
+        '@branding': resolve(root, 'assets/branding'),
       },
     },
     plugins: [react()],
     build: {
       rollupOptions: {
-        input: resolve(__dirname, 'src/index.html'),
+        input: resolve(root, 'src/index.html'),
       },
     },
   },
 });
 ```
+
+Note: use `import.meta.dirname` (stable in Node 22, works correctly regardless of how the ESM config file is loaded) rather than `__dirname`, since `package.json` has `"type": "module"` and this config file is loaded directly by the `electron-vite` CLI's config loader, not run through electron-vite's own main/preload CJS build step.
 
 - [ ] **Step 2: Add electron.vite.config.ts to tsconfig.node.json's include array**
 
