@@ -34,7 +34,7 @@
   "engines": {
     "node": ">=22.0.0"
   },
-  "main": "./out/main/index.js",
+  "main": "./out/main/index.mjs",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
@@ -60,6 +60,8 @@
   }
 }
 ```
+
+Note: `main` points at `index.mjs`, not `index.js`. Because `"type": "module"` is set, electron-vite builds the main process as ESM and names its entry `[name].mjs` — this must match what Task 7 actually produces.
 
 - [ ] **Step 2: Write .nvmrc**
 
@@ -432,6 +434,7 @@ import log from 'electron-log/main';
 import { registerIpcHandlers } from './ipc';
 
 const isDev = !app.isPackaged;
+const dirname = import.meta.dirname;
 
 log.initialize();
 log.transports.file.level = 'info';
@@ -447,7 +450,7 @@ function createMainWindow(): BrowserWindow {
     autoHideMenuBar: true,
     backgroundColor: '#0b0d12',
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(dirname, '../preload/index.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
@@ -466,7 +469,7 @@ function createMainWindow(): BrowserWindow {
   if (isDev && process.env.ELECTRON_RENDERER_URL) {
     void window.loadURL(process.env.ELECTRON_RENDERER_URL);
   } else {
-    void window.loadFile(join(__dirname, '../renderer/index.html'));
+    void window.loadFile(join(dirname, '../renderer/index.html'));
   }
 
   return window;
@@ -1479,7 +1482,7 @@ import { _electron as electron, expect, test } from '@playwright/test';
 
 test('launches the shell and resolves the app version over IPC', async () => {
   const app = await electron.launch({
-    args: [path.resolve(__dirname, '../../out/main/index.js')],
+    args: [path.resolve(process.cwd(), 'out/main/index.mjs')],
   });
 
   const window = await app.firstWindow();
