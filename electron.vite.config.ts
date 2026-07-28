@@ -6,6 +6,11 @@ const root = import.meta.dirname;
 
 export default defineConfig({
   main: {
+    resolve: {
+      alias: {
+        '@shared': resolve(root, 'shared'),
+      },
+    },
     build: {
       rollupOptions: {
         input: resolve(root, 'electron/main/index.ts'),
@@ -13,6 +18,11 @@ export default defineConfig({
     },
   },
   preload: {
+    resolve: {
+      alias: {
+        '@shared': resolve(root, 'shared'),
+      },
+    },
     build: {
       rollupOptions: {
         input: resolve(root, 'electron/preload/index.ts'),

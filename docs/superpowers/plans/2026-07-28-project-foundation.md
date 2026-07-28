@@ -292,6 +292,11 @@ const root = import.meta.dirname;
 
 export default defineConfig({
   main: {
+    resolve: {
+      alias: {
+        '@shared': resolve(root, 'shared'),
+      },
+    },
     build: {
       rollupOptions: {
         input: resolve(root, 'electron/main/index.ts'),
@@ -299,6 +304,11 @@ export default defineConfig({
     },
   },
   preload: {
+    resolve: {
+      alias: {
+        '@shared': resolve(root, 'shared'),
+      },
+    },
     build: {
       rollupOptions: {
         input: resolve(root, 'electron/preload/index.ts'),
@@ -325,6 +335,8 @@ export default defineConfig({
 ```
 
 Note: use `import.meta.dirname` (stable in Node 22, works correctly regardless of how the ESM config file is loaded) rather than `__dirname`, since `package.json` has `"type": "module"` and this config file is loaded directly by the `electron-vite` CLI's config loader, not run through electron-vite's own main/preload CJS build step.
+
+Note: `resolve.alias` for `@shared` must be repeated under `main` and `preload`, not just `renderer` — each of electron-vite's three build targets (main, preload, renderer) resolves aliases independently. Both `electron/main/ipc/index.ts` and `electron/preload/index.ts` import from `@shared/ipc`, so both configs need the alias or the build fails with "Rollup failed to resolve import".
 
 - [ ] **Step 2: Add electron.vite.config.ts to tsconfig.node.json's include array**
 
