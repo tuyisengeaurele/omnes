@@ -21,9 +21,14 @@ export function AppShell() {
 
   useEffect(() => {
     let cancelled = false;
-    window.omnes?.getAppVersion().then((value) => {
-      if (!cancelled) setVersion(value);
-    });
+    window.omnes
+      ?.getAppVersion()
+      .then((value) => {
+        if (!cancelled) setVersion(value);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to read app version', error);
+      });
     return () => {
       cancelled = true;
     };

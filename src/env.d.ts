@@ -4,7 +4,9 @@ import type { AppApi } from '../shared/ipc';
 
 declare global {
   interface Window {
-    omnes: AppApi;
+    // Only present when a preload script has run (real Electron windows).
+    // Absent in the Vitest/jsdom test environment and in a plain browser tab.
+    omnes?: AppApi;
   }
 }
 

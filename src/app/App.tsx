@@ -12,9 +12,13 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    i18nReady.then(() => {
-      if (!cancelled) setIsReady(true);
-    });
+    i18nReady
+      .then(() => {
+        if (!cancelled) setIsReady(true);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to initialize i18n', error);
+      });
     return () => {
       cancelled = true;
     };

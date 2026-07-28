@@ -5,6 +5,10 @@ directories:
 files:
   - out/**/*
   - package.json
+# No win.icon set: Windows requires a multi-resolution .ico, and generating
+# one properly from the source logo is real work that belongs to
+# feature/icons, not this sanity-only dir build. electron-builder falls
+# back to its default Electron icon until then.
 win:
   target: dir
 asar: true
