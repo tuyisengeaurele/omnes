@@ -47,6 +47,33 @@ logic. These folders are empty until the modules that need them are built.
 
 ## Database
 
+### One-time local setup
+
+OMNES expects a local PostgreSQL 17 instance already running. Create a dedicated
+role and database once (run these yourself — never paste a real password into
+chat or a command another party runs on your behalf):
+
+```bash
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE ROLE omnes WITH LOGIN PASSWORD 'your-password-here';"
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "ALTER ROLE omnes CREATEDB;"
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "CREATE DATABASE omnes_dev OWNER omnes;"
+```
+
+`CREATEDB` is required even though `omnes` only ever owns one real database —
+Prisma's `migrate dev` creates a temporary shadow database to compute schema
+diffs, which needs that privilege.
+
+Then create `.env` at the project root (gitignored, never committed) with:
+
+```
+DATABASE_URL="postgresql://omnes:your-password-here@localhost:5432/omnes_dev?schema=public"
+```
+
+If the password contains characters like `@` that are meaningful in a URL,
+percent-encode them (`@` → `%40`).
+
+### Architecture
+
 OMNES uses Prisma 7 against a local PostgreSQL instance. `prisma/schema.prisma` holds
 the datasource and generator declarations; `prisma.config.ts` (repo root) supplies the
 connection URL to Prisma's own CLI tooling (`generate`, `migrate`, `studio`) via

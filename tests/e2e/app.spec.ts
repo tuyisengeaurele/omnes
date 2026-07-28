@@ -12,9 +12,11 @@ test('launches the shell and resolves the app version and database status over I
   await expect(window).toHaveTitle('OMNES');
   await expect(window.getByText('Core')).toBeVisible();
   await expect(window.getByText(/^v\d+\.\d+\.\d+$/)).toBeVisible();
-  await expect(window.getByText(/^Database (connected|offline)$/)).toBeVisible({
-    timeout: 10_000,
-  });
+  // Requires a reachable PostgreSQL database (local dev: see docs/architecture.md
+  // for one-time setup; CI: provisioned via the postgres service container in
+  // .github/workflows/ci.yml). A real connection failure should fail this test,
+  // not just render "offline" and pass anyway.
+  await expect(window.getByText('Database connected')).toBeVisible({ timeout: 10_000 });
 
   await app.close();
 });

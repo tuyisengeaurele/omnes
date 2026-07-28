@@ -3,6 +3,14 @@
 Status: Approved
 Date: 2026-07-28
 
+> **Note:** the implementation plan
+> (`docs/superpowers/plans/2026-07-28-database-foundation.md`) corrects several
+> technical assumptions below once the actually-installed Prisma 7 turned out to
+> have a different architecture than expected (no `url` in the datasource block,
+> no native query-engine binary, explicit driver adapters required). This design
+> doc's goals and scope decisions still hold — read the plan's "Important
+> corrections" section for what changed at the implementation level.
+
 ## Purpose
 
 Every future OMNES module (auth, POS, inventory, CRM, reports, admin) needs
