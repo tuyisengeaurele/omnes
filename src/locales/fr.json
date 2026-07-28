@@ -1,0 +1,11 @@
+{
+  "app.name": "OMNES",
+  "shell.loading": "Chargement...",
+  "shell.comingSoon": "Bientôt disponible",
+  "modules.core": "Cœur",
+  "modules.pos": "Point de vente",
+  "modules.inventory": "Inventaire",
+  "modules.crm": "Clients",
+  "modules.reports": "Rapports",
+  "modules.admin": "Administration"
+}
