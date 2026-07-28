@@ -1,0 +1,10 @@
+appId: com.omnes.desktop
+productName: OMNES
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+win:
+  target: dir
+asar: true
