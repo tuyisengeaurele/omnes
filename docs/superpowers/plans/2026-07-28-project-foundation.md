@@ -1192,7 +1192,7 @@ export function Dashboard() {
 ```typescript
 import { useEffect, useState } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { i18nReady } from '../lib/i18n';
 import { SplashScreen } from './SplashScreen';
@@ -1212,35 +1212,32 @@ export function App() {
     };
   }, []);
 
+  if (!isReady) {
+    return <SplashScreen />;
+  }
+
   return (
     <ErrorBoundary>
-      <AnimatePresence mode="wait">
-        {!isReady ? (
-          <motion.div key="splash" exit={{ opacity: 0 }} transition={{ duration: 0.25 }}>
-            <SplashScreen />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="shell"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.25 }}
-            style={{ height: '100%' }}
-          >
-            <HashRouter>
-              <Routes>
-                <Route element={<AppShell />}>
-                  <Route index element={<Dashboard />} />
-                </Route>
-              </Routes>
-            </HashRouter>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.25 }}
+        style={{ height: '100%' }}
+      >
+        <HashRouter>
+          <Routes>
+            <Route element={<AppShell />}>
+              <Route index element={<Dashboard />} />
+            </Route>
+          </Routes>
+        </HashRouter>
+      </motion.div>
     </ErrorBoundary>
   );
 }
 ```
+
+Note: this does not use `AnimatePresence`/`mode="wait"` to cross-fade splash and shell — that was the original design, but verified live in a running dev server it left the app stuck on the splash screen forever (React state (`isReady`) flipped to `true` correctly, confirmed by inspecting the fiber tree directly, but `AnimatePresence`'s exit animation for the splash never completed, and `mode="wait"` blocks the shell from mounting until that exit finishes). The fix: render `SplashScreen` as a plain early return with no animation library involved, and only animate the shell's entrance (a simple fade-in `motion.div`, no exit/enter coordination needed since the splash has already fully unmounted by the time the shell mounts). This still satisfies the "premium, subtle" animation requirement for the shell's appearance without the fragile exit-coordination path.
 
 - [ ] **Step 4: Write src/main.tsx**
 
