@@ -573,6 +573,8 @@ Expected: the window opens showing "Database offline" in the titlebar (not "conn
 
 If the packaged app instead crashes or shows "connected" unexpectedly, something is wrong (e.g. `.env` accidentally got bundled) — investigate before proceeding.
 
+**A launch-directory gotcha, worth knowing before you conclude something's wrong:** `dotenv/config`'s default lookup is relative to the process's _current working directory_, not the executable's location. If you launch `release/win-unpacked/OMNES.exe` from a terminal whose cwd is still the project root (where the real `.env` lives), it will find and load that `.env` and genuinely show "connected" — that's not a packaging bug, it's `dotenv` doing exactly what it's told, from an unrealistic launch context. Double-click the exe from Explorer, or launch it with its own directory as cwd, to test the realistic case. This was verified directly: launching with the project root as cwd showed `{"connected":true}`; launching with `release/win-unpacked/` as cwd (no `.env` there) showed `{"connected":false}` — both correct, given what each cwd actually contains.
+
 ---
 
 ### Task 12: Extend the Playwright e2e test
