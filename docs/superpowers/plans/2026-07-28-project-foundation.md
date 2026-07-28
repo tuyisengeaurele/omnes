@@ -364,13 +364,15 @@ import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
+const root = import.meta.dirname;
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@shared': resolve(__dirname, 'shared'),
-      '@branding': resolve(__dirname, 'assets/branding'),
+      '@': resolve(root, 'src'),
+      '@shared': resolve(root, 'shared'),
+      '@branding': resolve(root, 'assets/branding'),
     },
   },
   test: {
@@ -381,6 +383,8 @@ export default defineConfig({
   },
 });
 ```
+
+Note: use `import.meta.dirname` here too, for the same reason as `electron.vite.config.ts` (see Task 5).
 
 - [ ] **Step 2: Write tests/unit/setup.ts**
 
