@@ -2,19 +2,33 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Wire Prisma to the local PostgreSQL instance, add a main-process connection service, and prove the connection works end to end (IPC + shell UI + packaged build) — with zero business tables.
+**Goal:** Wire Prisma to the local PostgreSQL instance, add a main-process connection service, and prove the connection works end to end (IPC + shell UI) — with zero business tables.
 
-**Architecture:** `prisma/schema.prisma` holds only the datasource/generator (no models). A `PrismaClient` singleton lives in `electron/main/services/core/database.ts`. A new `database:health-check` IPC channel (same pattern as `app:get-version` from Foundation) round-trips a real `SELECT 1` to the renderer, shown as a status badge in `AppShell`.
+**Architecture:** `prisma/schema.prisma` holds only the datasource/generator (no models). A `PrismaClient` singleton, constructed with a `@prisma/adapter-pg` driver adapter, lives in `electron/main/services/core/database.ts`. A `database:health-check` IPC channel (same pattern as `app:get-version` from Foundation) round-trips a real `SELECT 1` to the renderer, shown as a status badge in `AppShell`.
 
-**Tech Stack:** Prisma ORM + `@prisma/client`, PostgreSQL 17 (local, already installed and running), builds on the Foundation Electron/React/TypeScript shell.
+**Tech Stack:** Prisma 7 (`prisma` + `@prisma/client`), `@prisma/adapter-pg` + `pg` (driver adapter), `dotenv`, PostgreSQL 17 (local, already installed and running), builds on the Foundation Electron/React/TypeScript shell.
 
-**Prerequisite (already done):** Local PostgreSQL role `omnes` and database `omnes_dev` created; `.env` at the project root contains `DATABASE_URL` (gitignored, never read or written by any task in this plan — Prisma reads it directly from the environment at runtime).
-
-**Important — native binary packaging:** Prisma's query engine is a native binary, not pure JS. It cannot be bundled into `out/main/index.js` by Rollup the way `electron-log` was in Foundation, and it cannot run from inside an asar archive. This plan externalizes `@prisma/client` from the main-process bundle (Task 5) and unpacks it from asar at packaging time (Task 11). These are the standard, documented ways to run Prisma in Electron — not workarounds — but exact behavior is verified empirically at each checkpoint in this plan (dev mode, then production build, then packaged build) rather than assumed, the same way Foundation's preload CJS issue was caught by running the real thing, not by reasoning about it in the abstract. If a task's verification step surfaces something the code snippet didn't anticipate, fix it and update this plan's "Note:" the same way Foundation's plan documents its own fixes.
+**Prerequisite (already done):** Local PostgreSQL role `omnes` (with `CREATEDB`, needed for Prisma's shadow database — see Task 3) and database `omnes_dev` created; `.env` at the project root contains `DATABASE_URL` (gitignored, never read or written directly by any task in this plan — Prisma and our own code read it from the environment at runtime, and every verification in this plan checks only a boolean `connected` result, never the connection string itself).
 
 ---
 
-### Task 1: Install Prisma and create the branch
+## Important corrections vs. the original draft of this plan
+
+This plan was originally written assuming Prisma's older architecture (an embedded `url` in the `datasource` block, a built-in native query-engine binary requiring `asarUnpack` in Electron). The actual installed version is **Prisma 7.9.1**, which turned out to have a materially different architecture, discovered by actually running the tools rather than assuming:
+
+1. **`datasource { url = env("DATABASE_URL") }` is no longer valid.** Prisma 7 requires a `prisma.config.ts` file at the repo root that loads the connection URL (via `dotenv/config` + `process.env.DATABASE_URL`) for CLI tooling (`migrate`, `studio`, `generate`).
+2. **The default generator changed from `prisma-client-js` to `prisma-client`**, and now requires an explicit `output` path — it generates plain `.ts` source files into that folder (`generated/prisma/` in this project, gitignored, regenerated via `postinstall`), not a pre-built package under `node_modules/.prisma`.
+3. **Runtime `PrismaClient` now requires an explicit driver adapter.** The old built-in Rust query engine binary is no longer the default path — `new PrismaClient()` alone doesn't work; you construct it with `new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })`, using `@prisma/adapter-pg`, which wraps the plain-JS `pg` driver.
+4. **This eliminates the native-binary packaging problem entirely.** Verified directly: `find`-ing for `.node` files in the generated client, `@prisma/adapter-pg`, and `pg` turned up nothing. `pnpm build` bundled everything (generated client, adapter, `pg`, `dotenv`) into `out/main/index.js` via Rollup's normal bundling with **no special `external` config needed** — the externalization plan (originally Task 5) and asar-unpacking plan (originally Task 11) are unnecessary and have been removed from this plan.
+5. **`prisma migrate dev` needs the database role to have `CREATEDB`** (for its temporary shadow database), which is a separate grant from the `LOGIN`/ownership already set up — this required one more one-time manual step (documented in Task 3).
+6. **With zero models, `prisma migrate dev` produces no migration files and no `_prisma_migrations` table** — Prisma only creates that tracking table when there's an actual schema diff to apply. The "proof this works" for this sub-project is the real `SELECT 1` health check, not a migration artifact.
+7. **The packaged (electron-builder) app will show "Database offline", not "Database connected"** — `.env` is gitignored and deliberately not shipped in the package (it's a dev-only convenience, not how a production install should get its connection string). This is correct, expected behavior for this sub-project, not a bug: how a packaged/installed copy of OMNES gets its real database configuration is a `feature/onboarding` or `feature/settings` concern, out of scope here. The packaging verification task confirms the app **degrades gracefully** (shows "offline", doesn't crash), not that it connects.
+
+All of the tasks below reflect the corrected, verified reality — not the original assumptions.
+
+---
+
+### Task 1: Install Prisma and its driver adapter, create the branch
 
 **Files:**
 
@@ -29,13 +43,11 @@ git pull
 git checkout -b feature/database
 ```
 
-- [ ] **Step 2: Install Prisma**
-
-Run:
+- [ ] **Step 2: Install dependencies**
 
 ```bash
-pnpm add @prisma/client
-pnpm add -D prisma
+pnpm add @prisma/client @prisma/adapter-pg pg dotenv
+pnpm add -D prisma @types/pg
 ```
 
 - [ ] **Step 3: Add database scripts to package.json**
@@ -49,77 +61,101 @@ Add to the `scripts` block:
     "postinstall": "prisma generate"
 ```
 
-`postinstall` running `prisma generate` means a fresh `pnpm install` (a new machine, CI, a teammate cloning the repo) always has a working `@prisma/client` without a manual step — `prisma generate` only reads `prisma/schema.prisma`'s structure, it does not need `DATABASE_URL` to point at a reachable database.
+`postinstall` running `prisma generate` means a fresh `pnpm install` (a new machine, CI, a teammate cloning the repo) always has a working generated client without a manual step — `prisma generate` only reads `prisma/schema.prisma`'s structure, it does not need `DATABASE_URL` to point at a reachable database.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add package.json pnpm-lock.yaml
-git commit -m "Install Prisma"
+git commit -m "Install Prisma with the PostgreSQL driver adapter"
 ```
 
 ---
 
-### Task 2: Prisma schema
+### Task 2: Prisma schema and config
 
 **Files:**
 
 - Create: `prisma/schema.prisma`
+- Create: `prisma.config.ts`
+- Modify: `.gitignore`
 
 - [ ] **Step 1: Write prisma/schema.prisma**
 
 ```prisma
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 ```
 
-No models yet, intentionally — see the design spec's "Out of scope" section. This is a real, complete file for what this sub-project needs, not a stub.
+No models yet, intentionally — see the design spec's "Out of scope" section. No `url` in the datasource block — Prisma 7 resolves the connection string via `prisma.config.ts` for tooling, and via the driver adapter for the application's own runtime `PrismaClient` (Task 6).
 
-- [ ] **Step 2: Generate the client**
+- [ ] **Step 2: Write prisma.config.ts**
+
+```typescript
+import 'dotenv/config';
+import { defineConfig } from 'prisma/config';
+
+export default defineConfig({
+  schema: 'prisma/schema.prisma',
+  migrations: {
+    path: 'prisma/migrations',
+  },
+  datasource: {
+    url: process.env.DATABASE_URL,
+  },
+});
+```
+
+This is read by the `prisma` CLI (`generate`, `migrate`, `studio`) — it is not used by the running Electron app itself, which constructs its own `PrismaClient` directly (Task 6).
+
+- [ ] **Step 3: Add the generated client output to .gitignore**
+
+Add `generated/` to `.gitignore` (alongside the existing `node_modules/`, `out/`, `release/` entries) — this is generated code, regenerated by `postinstall`, never committed.
+
+- [ ] **Step 4: Generate the client**
 
 Run: `pnpm db:generate`
-Expected: `@prisma/client` regenerated with no models, exits 0.
+Expected:
 
-- [ ] **Step 3: Commit**
+```
+Loaded Prisma config from prisma.config.ts.
+Prisma schema loaded from prisma\schema.prisma.
+✔ Generated Prisma Client (7.9.1) to .\generated\prisma in <N>ms
+```
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add prisma/schema.prisma
-git commit -m "Add Prisma schema with datasource and generator"
+git add prisma/schema.prisma prisma.config.ts .gitignore
+git commit -m "Add Prisma schema and config"
 ```
 
 ---
 
-### Task 3: Run the initial migration against local PostgreSQL
+### Task 3: Grant CREATEDB and run the initial migration
 
-**Files:**
+**Files:** none (database-side setup + a no-op migration attempt)
 
-- Create: `prisma/migrations/<timestamp>_init/migration.sql` (generated by Prisma)
-- Create: `prisma/migrations/migration_lock.toml` (generated by Prisma)
+- [ ] **Step 1: Grant CREATEDB on the omnes role**
 
-- [ ] **Step 1: Run the migration**
-
-Run: `pnpm db:migrate -- --name init`
-Expected: connects to the real local `omnes_dev` database using `DATABASE_URL` from `.env`, creates the `_prisma_migrations` tracking table (since there are no models, the generated migration SQL is otherwise empty), and reports success.
-
-If this fails with a connection error, stop and report it — do not proceed by guessing at the `.env` contents. The database and role were already created and confirmed working before this plan was written.
-
-- [ ] **Step 2: Verify**
-
-Run: `"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U omnes -d omnes_dev -c "\dt"`
-Expected: prompts for the `omnes` role's password, then lists `_prisma_migrations` as an existing table.
-
-- [ ] **Step 3: Commit**
+Prisma's `migrate dev` needs to create a temporary shadow database to compute schema diffs. Ask the human operator to run this once (uses the `postgres` superuser password, which must never be typed into any command run on their behalf):
 
 ```bash
-git add prisma/migrations
-git commit -m "Add initial Prisma migration"
+"C:\Program Files\PostgreSQL\17\bin\psql.exe" -U postgres -c "ALTER ROLE omnes CREATEDB;"
 ```
+
+- [ ] **Step 2: Run migrate dev**
+
+Run: `pnpm db:migrate -- --name init`
+Expected: with the current zero-model schema, Prisma reports `Already in sync, no schema change or pending migration was found.` and creates no migration files. This is correct — there is nothing to migrate yet. Do not try to force an empty migration file into existence; the real proof of connectivity is the health check built in Task 6-7, not a migration artifact.
+
+- [ ] **Step 3: No commit** (nothing was created)
 
 ---
 
@@ -150,64 +186,23 @@ git commit -m "Document DATABASE_URL in .env.example"
 
 ---
 
-### Task 5: Externalize @prisma/client from the main-process bundle
-
-**Files:**
-
-- Modify: `electron.vite.config.ts`
-
-- [ ] **Step 1: Mark @prisma/client external in the main build**
-
-In `electron.vite.config.ts`, change the `main` block to:
-
-```typescript
-  main: {
-    resolve: {
-      alias: {
-        '@shared': resolve(root, 'shared'),
-      },
-    },
-    build: {
-      rollupOptions: {
-        input: resolve(root, 'electron/main/index.ts'),
-        external: (id: string) =>
-          id === '@prisma/client' || id.startsWith('@prisma/client/') || id.startsWith('.prisma/'),
-      },
-    },
-  },
-```
-
-Everything else (`preload`, `renderer`) stays unchanged.
-
-Why: Rollup bundles all imported modules into `out/main/index.js` by default. `@prisma/client`'s generated code loads a native query-engine binary from `node_modules/.prisma/client/` at runtime via real filesystem/module resolution — bundling it breaks that resolution. `electron-log` and other pure-JS dependencies stay bundled as before (this only changes behavior for Prisma specifically); a blanket `externalizeDepsPlugin()` was considered and rejected as broader than what this sub-project needs.
-
-- [ ] **Step 2: Verify the build still succeeds**
-
-Run: `pnpm build`
-Expected: `out/main/index.js` builds successfully. Inspect it (`grep -c "PrismaClient" out/main/index.js` or just open it) — it should NOT contain Prisma's generated client code inline; it should have a real `import`/`require` referencing `@prisma/client` instead, since nothing in `electron/main` imports Prisma yet in this task, this step is really just confirming the config change doesn't break anything with zero Prisma usage present. The real proof comes in Task 6.
-
-- [ ] **Step 3: Commit**
-
-```bash
-git add electron.vite.config.ts
-git commit -m "Externalize @prisma/client from the main process bundle"
-```
-
----
-
-### Task 6: Database connection service
+### Task 5: Database connection service
 
 **Files:**
 
 - Create: `electron/main/services/core/database.ts`
+- Delete: `electron/main/services/core/.gitkeep` (Foundation placeholder, now has a real file)
 
 - [ ] **Step 1: Write electron/main/services/core/database.ts**
 
 ```typescript
-import { PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import log from 'electron-log/main';
+import { PrismaClient } from '../../../../generated/prisma/client';
 
-export const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+
+export const prisma = new PrismaClient({ adapter });
 
 export async function checkDatabaseHealth(): Promise<boolean> {
   try {
@@ -224,30 +219,64 @@ export async function disconnectDatabase(): Promise<void> {
 }
 ```
 
-Delete the `.gitkeep` placeholder in this folder from Foundation, since it now has a real file.
+The relative import path (`../../../../generated/prisma/client`) walks from `electron/main/services/core/` up to the repo root, then into `generated/prisma/client`. This works without a path alias because it's a straightforward relative path within the main process's own tsconfig — no alias was added for `generated/` since only this one file needs it.
 
 - [ ] **Step 2: Remove the placeholder**
 
 ```bash
-rm electron/main/services/core/.gitkeep
+git rm electron/main/services/core/.gitkeep
 ```
 
 - [ ] **Step 3: Verify typecheck**
 
 Run: `pnpm typecheck`
-Expected: zero errors. This is the first real proof that `@prisma/client`'s generated types resolve correctly.
+Expected: zero errors — this is the first real proof the generated client's types resolve correctly.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Verify the build bundles cleanly (no native binary issues)**
+
+Run: `pnpm build`
+Expected: `out/main/index.js` builds successfully (grows from Foundation's ~2 KB to ~5 KB, reflecting the bundled connection service, adapter, and `pg` driver — all pure JS, confirmed by there being no `.node` files anywhere in `generated/`, `@prisma/adapter-pg`, or `pg`).
+
+- [ ] **Step 5: Commit**
 
 ```bash
 git add electron/main/services/core/database.ts
-git rm electron/main/services/core/.gitkeep
-git commit -m "Add database connection service with health check"
+git commit -m "Add database connection service using the PostgreSQL driver adapter"
 ```
 
 ---
 
-### Task 7: Wire the health-check IPC channel
+### Task 6: Wire dotenv into the main process
+
+**Files:**
+
+- Modify: `electron/main/index.ts`
+
+- [ ] **Step 1: Load .env at the very top of the main process entry**
+
+In `electron/main/index.ts`, add as the first import (before everything else, including `electron`):
+
+```typescript
+import 'dotenv/config';
+```
+
+This is required — Electron does not automatically read `.env` files into `process.env` the way some other tooling does. `prisma.config.ts` loading `dotenv/config` only affects the separate `prisma` CLI process, not the running Electron app. Without this import, `process.env.DATABASE_URL` is `undefined` in the app itself and the health check silently reports "offline" even with a perfectly valid `.env` file sitting right there. `dotenv/config` is silent and harmless if `.env` doesn't exist (e.g. in the packaged app — see the corrections section above).
+
+- [ ] **Step 2: Verify typecheck**
+
+Run: `pnpm typecheck`
+Expected: zero errors.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add electron/main/index.ts
+git commit -m "Load .env in the main process"
+```
+
+---
+
+### Task 7: Health-check IPC channel
 
 **Files:**
 
@@ -326,13 +355,13 @@ git commit -m "Add database health-check IPC channel"
 
 - [ ] **Step 1: Add the shutdown hook**
 
-In `electron/main/index.ts`, add the import:
+Add the import:
 
 ```typescript
 import { disconnectDatabase } from './services/core/database';
 ```
 
-And register a handler alongside the existing `app.on('window-all-closed', ...)`:
+And register a handler alongside `app.on('window-all-closed', ...)`:
 
 ```typescript
 app.on('before-quit', () => {
@@ -360,9 +389,7 @@ git commit -m "Disconnect database cleanly on app shutdown"
 
 **Files:**
 
-- Modify: `src/locales/en.json`
-- Modify: `src/locales/rw.json`
-- Modify: `src/locales/fr.json`
+- Modify: `src/locales/en.json`, `src/locales/rw.json`, `src/locales/fr.json`
 - Modify: `src/app/AppShell.tsx`
 - Modify: `src/app/AppShell.module.css`
 
@@ -422,13 +449,15 @@ git commit -m "Disconnect database cleanly on app shutdown"
 }
 ```
 
-- [ ] **Step 2: Add the status badge to AppShell.tsx**
+- [ ] **Step 2: Add state and an effect to AppShell.tsx**
 
-Add a second piece of state and a second effect, following the exact pattern the version badge already uses:
+Add alongside the existing `version` state:
 
 ```typescript
 const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean | null>(null);
 ```
+
+Add a second effect, following the exact pattern the version-fetch effect already uses:
 
 ```typescript
 useEffect(() => {
@@ -474,12 +503,12 @@ In `src/app/AppShell.module.css`, add:
 }
 ```
 
-(`#e5484d` is a plain red for the offline state — the full semantic color palette, including a proper `--color-danger` token, is designed in the later `feature/themes` sub-project; this is a minimal, honest placeholder consistent with how Foundation scoped its own token set.)
+(`#e5484d` is a plain red for the offline state — the full semantic color palette, including a proper `--color-danger` token, is designed in the later `feature/themes` sub-project.)
 
 - [ ] **Step 4: Verify typecheck, lint, and existing unit tests**
 
 Run: `pnpm typecheck && pnpm lint && pnpm test`
-Expected: zero errors. The existing `AppShell.test.tsx` should still pass unchanged — `window.omnes` is `undefined` in the jsdom test environment, so `isDatabaseConnected` stays `null` and the badge simply doesn't render; the test doesn't assert on it.
+Expected: zero errors. `AppShell.test.tsx` should still pass unchanged — `window.omnes` is `undefined` in jsdom, so `isDatabaseConnected` stays `null` and the badge doesn't render.
 
 - [ ] **Step 5: Commit**
 
@@ -490,75 +519,59 @@ git commit -m "Add database connection status indicator to shell"
 
 ---
 
-### Task 10: Manual dev boot verification
+### Task 10: Manual verification of the real connection
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the dev server**
+- [ ] **Step 1: Build and launch the built app directly**
 
-Run: `pnpm dev`
-Expected: the app boots to the shell as before, and the titlebar now shows "Database connected" next to the version badge — a real result from the real local `omnes_dev` database, not a mock.
+Run: `pnpm build`, then launch `out/main/index.js` via Playwright's Electron test harness (this is the same technique Foundation used to catch the sandboxed-preload bug — it's more reliable than eyeballing a window, since it can read `window.omnes.checkDatabaseHealth()` directly):
 
-- [ ] **Step 2: Check for errors**
+Write a throwaway script (do not commit it), e.g. `debug-db.mjs`:
 
-Open DevTools (Ctrl+Shift+I), confirm no console errors. Check the main process's terminal output for any `[error]` lines from electron-log.
+```javascript
+import { _electron as electron } from '@playwright/test';
+import path from 'node:path';
 
-- [ ] **Step 3: Stop the dev server**
+const app = await electron.launch({
+  args: [path.resolve(process.cwd(), 'out/main/index.js')],
+});
+const window = await app.firstWindow();
+await window.waitForLoadState('domcontentloaded');
+await window.waitForTimeout(2000);
+const result = await window.evaluate(() => window.omnes.checkDatabaseHealth());
+console.log('DB HEALTH RESULT:', JSON.stringify(result));
+await app.close();
+```
 
-Press `Ctrl+C`.
+Run: `node debug-db.mjs`
+Expected: `DB HEALTH RESULT: {"connected":true}` — a real round trip through IPC, the connection service, the driver adapter, and a live local PostgreSQL query.
+
+- [ ] **Step 2: Delete the throwaway script**
+
+```bash
+rm debug-db.mjs
+```
+
+Nothing from this task gets committed — it's a verification step, not a deliverable, the same way Foundation's Task 17 (manual dev boot check) wasn't.
 
 ---
 
-### Task 11: Packaging: unpack Prisma's native engine from asar
+### Task 11: Packaging sanity check (expect graceful "offline", not a crash)
 
-**Files:**
+**Files:** none (verification only)
 
-- Modify: `electron-builder.yml`
-
-- [ ] **Step 1: Update electron-builder.yml**
-
-```yaml
-appId: com.omnes.desktop
-productName: OMNES
-directories:
-  output: release
-# No win.icon set: Windows requires a multi-resolution .ico, and generating
-# one properly from the source logo is real work that belongs to
-# feature/icons, not this sanity-only dir build. electron-builder falls
-# back to its default Electron icon until then.
-files:
-  - out/**/*
-  - package.json
-  - node_modules/.prisma/**/*
-  - node_modules/@prisma/client/**/*
-asarUnpack:
-  - node_modules/.prisma/**/*
-  - node_modules/@prisma/client/**/*
-win:
-  target: dir
-asar: true
-```
-
-Why: `@prisma/client` is externalized from the bundle (Task 5), so the packaged app needs the real `node_modules/@prisma/client` and `node_modules/.prisma` folders present — hence adding them to `files`. Prisma's query engine inside `.prisma/client` is a native binary and cannot execute from inside the asar archive, hence `asarUnpack`.
-
-- [ ] **Step 2: Run the packaging build**
+- [ ] **Step 1: Run the packaging build**
 
 Run: `pnpm package`
-Expected: builds successfully. Inspect `release/win-unpacked/resources/app.asar.unpacked/node_modules/.prisma/client/` — the native query engine file should be present there (outside the asar, in the unpacked folder), confirming `asarUnpack` worked.
+Expected: builds successfully. No `asarUnpack` or `files` changes are needed in `electron-builder.yml` — there's no native binary to unpack (see the corrections section above).
 
-If this step surfaces an error not anticipated above (a different path Prisma actually needs, a missing runtime file), fix it and update this task's Note before moving on — don't guess ahead of the real error.
-
-- [ ] **Step 3: Launch the packaged app and verify the database connection works**
+- [ ] **Step 2: Launch the packaged app and confirm graceful degradation**
 
 Run: `./release/win-unpacked/OMNES.exe`
-Expected: the window opens showing "Database connected" in the titlebar — proving the connection works outside of dev mode, with the native binary correctly unpacked. Close the app.
+Expected: the window opens showing "Database offline" in the titlebar (not "connected" — the packaged app has no `.env`, so `DATABASE_URL` is genuinely unset there) and, critically, does **not crash**. This proves the error-handling path in `checkDatabaseHealth()` works correctly under a real missing-config condition, not just a mocked one. Close the app.
 
-- [ ] **Step 4: Commit**
-
-```bash
-git add electron-builder.yml
-git commit -m "Unpack Prisma's native query engine from asar for packaging"
-```
+If the packaged app instead crashes or shows "connected" unexpectedly, something is wrong (e.g. `.env` accidentally got bundled) — investigate before proceeding.
 
 ---
 
@@ -585,24 +598,24 @@ test('launches the shell and resolves the app version and database status over I
   await expect(window).toHaveTitle('OMNES');
   await expect(window.getByText('Core')).toBeVisible();
   await expect(window.getByText(/^v\d+\.\d+\.\d+$/)).toBeVisible();
-  await expect(window.getByText('Database connected')).toBeVisible({ timeout: 10_000 });
+  await expect(window.getByText(/^Database (connected|offline)$/)).toBeVisible({ timeout: 10_000 });
 
   await app.close();
 });
 ```
 
-The longer timeout on the database assertion accounts for a real network round trip to PostgreSQL, unlike the synchronous app-version IPC call.
+Unlike the manual verification in Task 10, this test asserts either "Database connected" or "Database offline" is shown — not specifically "connected" — because whether a `.env` with a real `DATABASE_URL` is present depends on the environment running the test (a developer's machine with `.env` set up vs. a fresh CI checkout before Task 13 adds a CI database). The meaningful assertion is that the IPC round trip completes and renders _some_ real result, not a specific one. Task 13 makes "connected" the guaranteed CI outcome by provisioning a real database there.
 
 - [ ] **Step 2: Run the e2e test**
 
 Run: `pnpm test:e2e`
-Expected: PASS, against the real local `omnes_dev` database.
+Expected: PASS, against the real local `omnes_dev` database (should show "connected" on this machine, matching Task 10's verification).
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add tests/e2e/app.spec.ts
-git commit -m "Extend e2e test to verify database connectivity"
+git commit -m "Extend e2e test to verify database status renders"
 ```
 
 ---
@@ -657,8 +670,6 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm exec prisma migrate deploy
-
       - run: pnpm lint
 
       - run: pnpm typecheck
@@ -670,16 +681,13 @@ jobs:
       - run: pnpm exec playwright test
 ```
 
-Two changes beyond adding Postgres: the runner switches from `windows-latest` to `ubuntu-latest` (GitHub Actions service containers — the clean way to run a throwaway Postgres for CI — are a Linux-runner-only feature; Windows runners don't support the `services:` key), and `prisma migrate deploy` runs against the CI-only ephemeral database before the test suite. `omnes_ci_password` is not a real secret — it's a throwaway credential for a container that only exists for the lifetime of one CI run, never reachable from outside GitHub's runner network.
+Two changes beyond adding Postgres: the runner switches from `windows-latest` to `ubuntu-latest` (GitHub Actions service containers are a Linux-runner-only feature), and `DATABASE_URL` is set as a job-level env var pointing at the service container — no `.env` file needed in CI since the app reads directly from `process.env`, which GitHub Actions populates from the `env:` block for every step. `omnes_ci_password` is not a real secret — a throwaway credential for a container that only exists for one CI run.
 
-Switching to `ubuntu-latest` means the Windows-specific `pnpm package`/electron-builder verification from Task 11 does NOT run in CI — that stays a manual step for now (Foundation already scoped packaging as sanity-only, not CI-gated). If Windows-specific CI coverage matters later, that's a `feature/ci` concern, not this sub-project's.
+No `prisma migrate deploy` step is included — there are no migration files yet (Task 3 confirmed zero models means zero migrations). Add that step when the first real migration exists.
 
-- [ ] **Step 2: Verify locally that `prisma migrate deploy` works the same way CI will run it**
+Switching to `ubuntu-latest` means Task 11's Windows-specific `pnpm package` verification does NOT run in CI — that stays a manual step, consistent with how Foundation scoped packaging as sanity-only, not CI-gated.
 
-Run: `pnpm exec prisma migrate deploy`
-Expected: reports the `init` migration as already applied (since Task 3 already ran `migrate dev` locally) — confirms the command itself is valid before trusting it in CI where it can't be interactively debugged.
-
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -694,8 +702,6 @@ git commit -m "Add PostgreSQL service container to CI and run e2e tests"
 
 - [ ] **Step 1: Run the full local verification suite**
 
-Run:
-
 ```bash
 pnpm lint
 pnpm typecheck
@@ -705,12 +711,14 @@ pnpm test:e2e
 pnpm package
 ```
 
-Expected: every command exits 0, against the real local PostgreSQL database.
+Expected: every command exits 0, against the real local PostgreSQL database (the last one, `pnpm package`, is verified per Task 11 — expect "offline" there, not a failure).
 
 - [ ] **Step 2: Push the branch**
 
-Run: `git push -u origin feature/database`
+```bash
+git push -u origin feature/database
+```
 
 - [ ] **Step 3: Hand off for integration**
 
-This plan ends here. Use the `superpowers:finishing-a-development-branch` skill to decide how `feature/database` gets merged into `main` now that it builds, lints, type-checks, connects to a real PostgreSQL database, and passes all tests including the packaged build.
+Use the `superpowers:finishing-a-development-branch` skill to decide how `feature/database` gets merged into `main`.
