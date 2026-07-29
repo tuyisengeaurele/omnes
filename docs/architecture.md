@@ -102,6 +102,57 @@ not solved here.
 (`database:health-check`) — errors are logged via electron-log in the main process only
 and never leak error details to the renderer.
 
+## Authentication
+
+`User` (id, username, `passwordHash`, `role` enum — `ADMIN`/`MANAGER`/`CASHIER`,
+`isActive`, timestamps) and `AuditLog` (id, nullable `userId`/`username`, `action`
+enum, `createdAt`) are the project's first real Prisma models — everything before
+this sub-project had zero models. `AuditLog.userId` uses `onDelete: SetNull`
+deliberately: a failed login with an unknown username has no user to attach, and if
+an account is ever deleted later, its audit history should survive with `userId`
+cleared rather than being deleted along with it.
+
+`electron/main/services/core/auth.ts` holds all the logic — login, the first-admin
+bootstrap, session state, locking — and imports nothing from `electron`, only
+`bcryptjs`, the local Prisma client, and shared types. That's deliberate: it's what
+makes the service testable directly with `vitest` against a real database, with no
+Electron runtime involved (`tests/unit/auth.test.ts`). Thin Electron-API wrappers
+around it — `idle.ts` (`powerMonitor`) and `preferences.ts` (`electron-store`, which
+needs a real `app` context to resolve its config path) — stay out of `auth.ts` for
+the same reason and aren't unit tested themselves.
+
+Passwords are hashed with `bcryptjs` (pure JS, cost factor 12) rather than native
+`bcrypt`/`argon2`, preserving the fully native-binary-free Electron packaging the
+database layer established. `login()` returns the identical generic error for an
+unknown username and a wrong password, both from the service and all the way to
+what the renderer displays, so the login form can't be used to enumerate valid
+usernames.
+
+The first-admin bootstrap (`createFirstAdmin`) wraps its "is the user table empty"
+check and the `user.create` in one `Serializable`-isolation `$transaction`, not two
+separate queries — a plain count-then-create is a TOCTOU race that lets two
+concurrent calls both observe an empty table and both succeed, found and fixed
+during this sub-project's own code review (`tests/unit/auth.test.ts`'s concurrency
+test reproduces it directly). It also enforces minimum username/password length
+server-side, not just in the renderer's form validation — `window.omnes` is callable
+directly from DevTools, so the renderer is not a trust boundary.
+
+Sessions are plain in-memory main-process state (`{ userId, username, role,
+loginAt, isLocked }`, or `null`), not a token — there's no network boundary here to
+defend the way a web app's cookie/JWT would need to. `electron/main/services/core/
+idle.ts` polls `powerMonitor.getSystemIdleTime()` (real OS-level idle time, not a
+renderer-side timer) every 30 seconds and marks the session locked after 5 minutes
+idle, pushing a `session:locked` event to the renderer — the one `AppApi` member
+that's a subscription (`onSessionLocked`, returning an unsubscribe function) rather
+than a request/response call, since it's main-initiated.
+
+**Scope boundary worth knowing before adding the next IPC handler:** locking today
+only gates the renderer's UI (`AuthGate` swaps to `LockScreen`) — it does not
+re-check `getSession()?.isLocked` inside any IPC handler. That's not a gap yet,
+because no IPC handler currently returns real business data; every handler that
+does needs to check the session's lock state itself, not assume the UI gate already
+enforced it.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -148,7 +199,24 @@ configured in both `electron.vite.config.ts` and `vitest.config.ts`.
 ## Testing
 
 Unit tests (Vitest + Testing Library) cover pieces with real logic: the `cn` class-name
-utility and `AppShell`'s sidebar rendering. An end-to-end test (Playwright, using its
-Electron support) launches the actual built app and verifies the window title, sidebar
-content, and that the `window.omnes.getAppVersion()` IPC round trip genuinely works —
-this is what originally caught the preload build-format bug described above.
+utility, `AppShell`'s sidebar rendering, and `auth.ts`'s login/bootstrap/session logic
+against the real local database (forced to Vitest's `node` environment via a
+`// @vitest-environment node` comment, since it's Node/Prisma logic, not DOM logic).
+The auth and e2e test suites delete all `User` rows as part of their own setup and
+teardown to get a known-empty starting state — there's no separate local test
+database yet, so running `pnpm test` or `pnpm test:e2e` locally is destructive to
+whatever accounts exist in the dev database at the time, by design.
+
+Both Vitest and Playwright need `dotenv/config` loaded explicitly in their own config
+files (`tests/unit/setup.ts`, `playwright.config.ts`) — neither loads `.env`
+automatically the way the main process does, and the failure mode when it's missing
+isn't an obvious "env var undefined" error but a `pg`-level SASL authentication
+failure, which took an actual test run to surface rather than being predictable in
+advance.
+
+An end-to-end test (Playwright, using its Electron support) launches the actual built
+app and verifies the window title, the first-admin bootstrap screen on a fresh
+database, and that the full create-account-to-shell flow works with real IPC data
+(version, database status, username all visible post-login) — this is what originally
+caught the preload build-format bug described above, and now also what proves
+authentication actually gates the shell rather than just typechecking as if it does.

@@ -1,6 +1,16 @@
 import { app, ipcMain } from 'electron';
-import { IPC_CHANNELS, type DatabaseHealthResult } from '@shared/ipc';
+import log from 'electron-log/main';
+import { IPC_CHANNELS, type DatabaseHealthResult, type Session } from '@shared/ipc';
 import { checkDatabaseHealth } from '../services/core/database';
+import {
+  createFirstAdmin,
+  getSession,
+  hasUsers,
+  login,
+  logout,
+  unlock,
+} from '../services/core/auth';
+import { getLastUsername, setLastUsername } from '../services/core/preferences';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -9,4 +19,39 @@ export function registerIpcHandlers(): void {
     const connected = await checkDatabaseHealth();
     return { connected };
   });
+
+  ipcMain.handle(IPC_CHANNELS.hasUsers, () => hasUsers());
+
+  ipcMain.handle(
+    IPC_CHANNELS.createFirstAdmin,
+    async (_event, username: string, password: string): Promise<Session> => {
+      const session = await createFirstAdmin(username, password);
+      setLastUsername(session.username);
+      return session;
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.login,
+    async (_event, username: string, password: string): Promise<Session> => {
+      const session = await login(username, password);
+      setLastUsername(session.username);
+      return session;
+    },
+  );
+
+  ipcMain.handle(IPC_CHANNELS.logout, () => logout());
+
+  ipcMain.handle(IPC_CHANNELS.unlock, async (_event, password: string): Promise<Session> => {
+    try {
+      return await unlock(password);
+    } catch (error) {
+      log.warn('Unlock attempt failed', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.getSession, (): Session | null => getSession());
+
+  ipcMain.handle(IPC_CHANNELS.getLastUsername, (): string | null => getLastUsername());
 }

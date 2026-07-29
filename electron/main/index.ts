@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import log from 'electron-log/main';
 import { registerIpcHandlers } from './ipc';
 import { disconnectDatabase } from './services/core/database';
+import { startIdleMonitor } from './services/core/idle';
 
 const isDev = !app.isPackaged;
 const dirname = import.meta.dirname;
@@ -60,7 +61,8 @@ void app.whenReady().then(() => {
   });
 
   registerIpcHandlers();
-  createMainWindow();
+  const mainWindow = createMainWindow();
+  startIdleMonitor(mainWindow);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

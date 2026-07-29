@@ -31,8 +31,9 @@ git checkout -b feature/authentication
 
 ```bash
 pnpm add bcryptjs react-hook-form zod @hookform/resolvers electron-store
-pnpm add -D @types/bcryptjs
 ```
+
+No `@types/bcryptjs` — `bcryptjs` ships its own type definitions; installing the separate `@types` package produces a deprecation warning and isn't needed (found by actually running the install, not assumed).
 
 - [ ] **Step 3: Commit**
 
@@ -98,8 +99,10 @@ model AuditLog {
 
 ```bash
 pnpm db:generate
-pnpm db:migrate -- --name add_users_and_audit_log
+pnpm exec prisma migrate dev --name add_users_and_audit_log
 ```
+
+Use `pnpm exec prisma migrate dev --name ...` directly, **not** `pnpm db:migrate -- --name ...`. The latter was tried first and hung indefinitely: `pnpm run <script> -- <args>` on this pnpm version passes the literal `--` token through into the underlying command instead of stripping it as a separator, so `prisma` never saw a recognized `--name` flag, silently fell back to its interactive "Enter a name for the new migration" prompt, and sat there forever waiting on stdin that a non-interactive shell never provides — it doesn't error, it just hangs, which is what makes it worth calling out explicitly here rather than letting the next person rediscover it by waiting several minutes on a stuck command.
 
 Expected: unlike Database Foundation's empty-schema migration, this one produces real output — `prisma/migrations/<timestamp>_add_users_and_audit_log/migration.sql` with `CREATE TYPE`, `CREATE TABLE` statements for `User` and `AuditLog`, plus the `_prisma_migrations` tracking table. This is the project's first real migration file.
 
@@ -798,7 +801,14 @@ git commit -m "Add authentication locale strings"
 
 ```typescript
 import { create } from 'zustand';
-import type { Session } from '@shared/ipc';
+import type { AppApi, Session } from '@shared/ipc';
+
+function getApi(): AppApi {
+  if (!window.omnes) {
+    throw new Error('window.omnes is not available — the preload script did not load');
+  }
+  return window.omnes;
+}
 
 interface AuthState {
   session: Session | null;
@@ -823,9 +833,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   initialize: async () => {
     const [hasUsersResult, session, lastUsername] = await Promise.all([
-      window.omnes.hasUsers(),
-      window.omnes.getSession(),
-      window.omnes.getLastUsername(),
+      getApi().hasUsers(),
+      getApi().getSession(),
+      getApi().getLastUsername(),
     ]);
     set({ hasUsers: hasUsersResult, session, lastUsername, isInitializing: false });
   },
@@ -833,7 +843,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (username, password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.login(username, password);
+      const session = await getApi().login(username, password);
       set({ session, hasUsers: true });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Login failed' });
@@ -844,7 +854,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   createFirstAdmin: async (username, password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.createFirstAdmin(username, password);
+      const session = await getApi().createFirstAdmin(username, password);
       set({ session, hasUsers: true });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Could not create account' });
@@ -853,14 +863,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await window.omnes.logout();
+    await getApi().logout();
     set({ session: null });
   },
 
   unlock: async (password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.unlock(password);
+      const session = await getApi().unlock(password);
       set({ session });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unlock failed' });
@@ -874,7 +884,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 ```
 
-This store calls `window.omnes` directly without the `?.` optional chaining Foundation's `AppShell` used for its version/database checks — auth is a mandatory gate the app cannot function without, so failing loudly (a thrown error) if `window.omnes` is somehow missing is correct here, not a bug to guard against silently.
+This store deliberately doesn't use the `?.` optional chaining Foundation's `AppShell` used for its version/database checks — auth is a mandatory gate the app cannot function without, so failing loudly if `window.omnes` is somehow missing is correct here, not a bug to guard against silently. But `window.omnes` is typed as optional (`Window.omnes?: AppApi`, set that way during Database Foundation's code review), so TypeScript correctly refuses plain `window.omnes.login(...)` calls with "possibly undefined" — the `getApi()` helper is what reconciles "the type says this can be missing" with "and if it is, that's a real error worth a clear message," rather than reaching for a `!` non-null assertion that would just produce a confusing runtime `TypeError` instead.
 
 - [ ] **Step 2: Verify typecheck**
 
@@ -1456,9 +1466,20 @@ Press `Ctrl+C`. (The 5-minute idle-lock timing isn't practical to verify by wait
 
 **Files:**
 
+- Modify: `playwright.config.ts`
 - Modify: `tests/e2e/app.spec.ts`
 
-- [ ] **Step 1: Add a beforeEach that clears the User table**
+- [ ] **Step 1: Load .env in the Playwright config**
+
+This test file is about to import `electron/main/services/core/database.ts` directly (Step 2 below) to clear the `User` table between tests — but Playwright's test runner, like Vitest, does not load `.env` on its own; only our main process (`dotenv/config` in `electron/main/index.ts`) and, since Task 4, our Vitest setup file do. Without this, `DATABASE_URL` is `undefined` when the test file's top-level `import { prisma } from ...` runs, and the failure isn't an obvious "env var missing" error — it surfaces as `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` from deep inside `pg`, which took a real test run to actually see. Add the same fix used in `prisma.config.ts` and `tests/unit/setup.ts`:
+
+In `playwright.config.ts`, add as the first import:
+
+```typescript
+import 'dotenv/config';
+```
+
+- [ ] **Step 2: Add a beforeEach that clears the User table**
 
 ```typescript
 import path from 'node:path';
@@ -1518,15 +1539,15 @@ The pre-authentication assertions (title, database status, version badge, `Core`
 
 Both tests deleting all users via `beforeEach` means these e2e tests are destructive to whatever's in the local database, the same tradeoff Task 4's unit tests already accepted — documented there, not repeated as a surprise here.
 
-- [ ] **Step 2: Run the e2e tests**
+- [ ] **Step 3: Run the e2e tests**
 
 Run: `pnpm test:e2e`
 Expected: both tests PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add tests/e2e/app.spec.ts
+git add playwright.config.ts tests/e2e/app.spec.ts
 git commit -m "Extend e2e tests to cover the first-admin bootstrap flow"
 ```
 
