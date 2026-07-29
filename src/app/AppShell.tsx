@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../lib/store/uiStore';
+import { useAuthStore } from '../lib/store/authStore';
 import styles from './AppShell.module.css';
 
 const MODULE_NAV = [
@@ -19,6 +20,8 @@ export function AppShell() {
   const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean | null>(null);
   const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const session = useAuthStore((state) => state.session);
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,6 +62,20 @@ export function AppShell() {
           <span className={styles.dbStatus} data-connected={isDatabaseConnected}>
             {t(isDatabaseConnected ? 'shell.databaseConnected' : 'shell.databaseOffline')}
           </span>
+        )}
+        {session && (
+          <div className={styles.userControls}>
+            <span className={styles.username}>{session.username}</span>
+            <button
+              type="button"
+              className={styles.logoutButton}
+              onClick={() => {
+                void logout();
+              }}
+            >
+              {t('auth.logout')}
+            </button>
+          </div>
         )}
       </header>
       <div className={styles.body}>
