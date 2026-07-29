@@ -801,7 +801,14 @@ git commit -m "Add authentication locale strings"
 
 ```typescript
 import { create } from 'zustand';
-import type { Session } from '@shared/ipc';
+import type { AppApi, Session } from '@shared/ipc';
+
+function getApi(): AppApi {
+  if (!window.omnes) {
+    throw new Error('window.omnes is not available — the preload script did not load');
+  }
+  return window.omnes;
+}
 
 interface AuthState {
   session: Session | null;
@@ -826,9 +833,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   initialize: async () => {
     const [hasUsersResult, session, lastUsername] = await Promise.all([
-      window.omnes.hasUsers(),
-      window.omnes.getSession(),
-      window.omnes.getLastUsername(),
+      getApi().hasUsers(),
+      getApi().getSession(),
+      getApi().getLastUsername(),
     ]);
     set({ hasUsers: hasUsersResult, session, lastUsername, isInitializing: false });
   },
@@ -836,7 +843,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   login: async (username, password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.login(username, password);
+      const session = await getApi().login(username, password);
       set({ session, hasUsers: true });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Login failed' });
@@ -847,7 +854,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   createFirstAdmin: async (username, password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.createFirstAdmin(username, password);
+      const session = await getApi().createFirstAdmin(username, password);
       set({ session, hasUsers: true });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Could not create account' });
@@ -856,14 +863,14 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    await window.omnes.logout();
+    await getApi().logout();
     set({ session: null });
   },
 
   unlock: async (password) => {
     set({ error: null });
     try {
-      const session = await window.omnes.unlock(password);
+      const session = await getApi().unlock(password);
       set({ session });
     } catch (error) {
       set({ error: error instanceof Error ? error.message : 'Unlock failed' });
@@ -877,7 +884,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 }));
 ```
 
-This store calls `window.omnes` directly without the `?.` optional chaining Foundation's `AppShell` used for its version/database checks — auth is a mandatory gate the app cannot function without, so failing loudly (a thrown error) if `window.omnes` is somehow missing is correct here, not a bug to guard against silently.
+This store deliberately doesn't use the `?.` optional chaining Foundation's `AppShell` used for its version/database checks — auth is a mandatory gate the app cannot function without, so failing loudly if `window.omnes` is somehow missing is correct here, not a bug to guard against silently. But `window.omnes` is typed as optional (`Window.omnes?: AppApi`, set that way during Database Foundation's code review), so TypeScript correctly refuses plain `window.omnes.login(...)` calls with "possibly undefined" — the `getApi()` helper is what reconciles "the type says this can be missing" with "and if it is, that's a real error worth a clear message," rather than reaching for a `!` non-null assertion that would just produce a confusing runtime `TypeError` instead.
 
 - [ ] **Step 2: Verify typecheck**
 
