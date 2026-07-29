@@ -5,6 +5,7 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { i18nReady } from '../lib/i18n';
 import { SplashScreen } from './SplashScreen';
 import { AppShell } from './AppShell';
+import { AuthGate } from './AuthGate';
 import { Dashboard } from '../modules/core/Dashboard';
 
 export function App() {
@@ -36,13 +37,15 @@ export function App() {
         transition={{ duration: 0.25 }}
         style={{ height: '100%' }}
       >
-        <HashRouter>
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route index element={<Dashboard />} />
-            </Route>
-          </Routes>
-        </HashRouter>
+        <AuthGate>
+          <HashRouter>
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route index element={<Dashboard />} />
+              </Route>
+            </Routes>
+          </HashRouter>
+        </AuthGate>
       </motion.div>
     </ErrorBoundary>
   );
