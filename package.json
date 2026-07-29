@@ -38,18 +38,23 @@
     ]
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.5.7",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
     "@tanstack/react-query": "^5.101.4",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.4.2",
     "electron-log": "^5.4.4",
+    "electron-store": "^11.0.2",
     "framer-motion": "^12.42.2",
     "i18next": "^26.3.6",
     "pg": "^8.22.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-hook-form": "^7.83.0",
     "react-i18next": "^17.0.11",
     "react-router-dom": "^7.18.1",
+    "zod": "^4.4.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

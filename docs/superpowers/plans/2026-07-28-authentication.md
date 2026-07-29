@@ -31,8 +31,9 @@ git checkout -b feature/authentication
 
 ```bash
 pnpm add bcryptjs react-hook-form zod @hookform/resolvers electron-store
-pnpm add -D @types/bcryptjs
 ```
+
+No `@types/bcryptjs` — `bcryptjs` ships its own type definitions; installing the separate `@types` package produces a deprecation warning and isn't needed (found by actually running the install, not assumed).
 
 - [ ] **Step 3: Commit**
 
