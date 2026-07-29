@@ -99,8 +99,10 @@ model AuditLog {
 
 ```bash
 pnpm db:generate
-pnpm db:migrate -- --name add_users_and_audit_log
+pnpm exec prisma migrate dev --name add_users_and_audit_log
 ```
+
+Use `pnpm exec prisma migrate dev --name ...` directly, **not** `pnpm db:migrate -- --name ...`. The latter was tried first and hung indefinitely: `pnpm run <script> -- <args>` on this pnpm version passes the literal `--` token through into the underlying command instead of stripping it as a separator, so `prisma` never saw a recognized `--name` flag, silently fell back to its interactive "Enter a name for the new migration" prompt, and sat there forever waiting on stdin that a non-interactive shell never provides — it doesn't error, it just hangs, which is what makes it worth calling out explicitly here rather than letting the next person rediscover it by waiting several minutes on a stuck command.
 
 Expected: unlike Database Foundation's empty-schema migration, this one produces real output — `prisma/migrations/<timestamp>_add_users_and_audit_log/migration.sql` with `CREATE TYPE`, `CREATE TABLE` statements for `User` and `AuditLog`, plus the `_prisma_migrations` tracking table. This is the project's first real migration file.
 
