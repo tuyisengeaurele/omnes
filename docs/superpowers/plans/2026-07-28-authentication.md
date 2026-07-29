@@ -1466,9 +1466,20 @@ Press `Ctrl+C`. (The 5-minute idle-lock timing isn't practical to verify by wait
 
 **Files:**
 
+- Modify: `playwright.config.ts`
 - Modify: `tests/e2e/app.spec.ts`
 
-- [ ] **Step 1: Add a beforeEach that clears the User table**
+- [ ] **Step 1: Load .env in the Playwright config**
+
+This test file is about to import `electron/main/services/core/database.ts` directly (Step 2 below) to clear the `User` table between tests — but Playwright's test runner, like Vitest, does not load `.env` on its own; only our main process (`dotenv/config` in `electron/main/index.ts`) and, since Task 4, our Vitest setup file do. Without this, `DATABASE_URL` is `undefined` when the test file's top-level `import { prisma } from ...` runs, and the failure isn't an obvious "env var missing" error — it surfaces as `SASL: SCRAM-SERVER-FIRST-MESSAGE: client password must be a string` from deep inside `pg`, which took a real test run to actually see. Add the same fix used in `prisma.config.ts` and `tests/unit/setup.ts`:
+
+In `playwright.config.ts`, add as the first import:
+
+```typescript
+import 'dotenv/config';
+```
+
+- [ ] **Step 2: Add a beforeEach that clears the User table**
 
 ```typescript
 import path from 'node:path';
@@ -1528,15 +1539,15 @@ The pre-authentication assertions (title, database status, version badge, `Core`
 
 Both tests deleting all users via `beforeEach` means these e2e tests are destructive to whatever's in the local database, the same tradeoff Task 4's unit tests already accepted — documented there, not repeated as a surprise here.
 
-- [ ] **Step 2: Run the e2e tests**
+- [ ] **Step 3: Run the e2e tests**
 
 Run: `pnpm test:e2e`
 Expected: both tests PASS.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
-git add tests/e2e/app.spec.ts
+git add playwright.config.ts tests/e2e/app.spec.ts
 git commit -m "Extend e2e tests to cover the first-admin bootstrap flow"
 ```
 
