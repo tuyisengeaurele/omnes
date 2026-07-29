@@ -1,9 +1,13 @@
 import bcrypt from 'bcryptjs';
 import { prisma } from './database';
+import { Prisma } from '../../../../generated/prisma/client';
 import type { Role, Session } from '@shared/ipc';
 
 const SALT_ROUNDS = 12;
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
+const ACCOUNT_ALREADY_EXISTS_MESSAGE = 'An account already exists';
+const MIN_USERNAME_LENGTH = 3;
+const MIN_PASSWORD_LENGTH = 8;
 
 let currentSession: Session | null = null;
 
@@ -23,15 +27,43 @@ export async function hasUsers(): Promise<boolean> {
 }
 
 export async function createFirstAdmin(username: string, password: string): Promise<Session> {
-  const existingCount = await prisma.user.count();
-  if (existingCount > 0) {
-    throw new Error('An account already exists');
+  if (username.trim().length < MIN_USERNAME_LENGTH) {
+    throw new Error(`Username must be at least ${MIN_USERNAME_LENGTH} characters`);
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
   }
 
+  // Renderer-side Zod validation enforces the same minimums, but the renderer
+  // is not a trust boundary — DevTools can call window.omnes.createFirstAdmin
+  // directly, bypassing any form. These checks are the real enforcement.
+
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await prisma.user.create({
-    data: { username, passwordHash, role: 'ADMIN' },
-  });
+
+  let user;
+  try {
+    // count-then-create must be one atomic unit, not two separate queries —
+    // two concurrent calls can otherwise both observe count === 0 and both
+    // successfully create an admin. Serializable isolation makes Postgres
+    // detect that conflict and abort the loser with a P2034 error instead.
+    user = await prisma.$transaction(
+      async (tx) => {
+        const existingCount = await tx.user.count();
+        if (existingCount > 0) {
+          throw new Error(ACCOUNT_ALREADY_EXISTS_MESSAGE);
+        }
+        return tx.user.create({
+          data: { username, passwordHash, role: 'ADMIN' },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+      throw new Error(ACCOUNT_ALREADY_EXISTS_MESSAGE);
+    }
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: user.id, username: user.username, action: 'ADMIN_CREATED' },

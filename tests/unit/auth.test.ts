@@ -49,6 +49,32 @@ describe('auth', () => {
     await expect(createFirstAdmin('someone-else', TEST_PASSWORD)).rejects.toThrow();
   });
 
+  it('only allows one of two concurrent createFirstAdmin calls to succeed', async () => {
+    const results = await Promise.allSettled([
+      createFirstAdmin('concurrent-one', TEST_PASSWORD),
+      createFirstAdmin('concurrent-two', TEST_PASSWORD),
+    ]);
+
+    const fulfilled = results.filter((result) => result.status === 'fulfilled');
+    const rejected = results.filter((result) => result.status === 'rejected');
+
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(await prisma.user.count()).toBe(1);
+  });
+
+  it('rejects a username shorter than the minimum length', async () => {
+    await expect(createFirstAdmin('ab', TEST_PASSWORD)).rejects.toThrow(
+      'Username must be at least 3 characters',
+    );
+  });
+
+  it('rejects a password shorter than the minimum length', async () => {
+    await expect(createFirstAdmin(TEST_USERNAME, 'short')).rejects.toThrow(
+      'Password must be at least 8 characters',
+    );
+  });
+
   it('logs in with correct credentials', async () => {
     await createFirstAdmin(TEST_USERNAME, TEST_PASSWORD);
     await logout();
