@@ -9,6 +9,7 @@ export const IPC_CHANNELS = {
   getSession: 'auth:get-session',
   getLastUsername: 'auth:get-last-username',
   sessionLocked: 'session:locked',
+  getLicenseInfo: 'license:get-info',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -25,6 +26,30 @@ export interface Session {
   isLocked: boolean;
 }
 
+export type LicenseTier = 'DEVELOPMENT' | 'BASE';
+
+export type Feature =
+  | 'pos'
+  | 'inventory'
+  | 'receipts'
+  | 'reports_basic'
+  | 'administration'
+  | 'mobile_money'
+  | 'crm'
+  | 'loyalty'
+  | 'store_credit'
+  | 'reports_advanced'
+  | 'multi_warehouse';
+
+export interface LicenseInfo {
+  licenseId: string;
+  customerName: string | null;
+  tier: LicenseTier;
+  addons: Feature[];
+  issuedAt: string;
+  expiresAt: string | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -36,4 +61,5 @@ export interface AppApi {
   getSession: () => Promise<Session | null>;
   getLastUsername: () => Promise<string | null>;
   onSessionLocked: (callback: () => void) => () => void;
+  getLicenseInfo: () => Promise<LicenseInfo>;
 }
