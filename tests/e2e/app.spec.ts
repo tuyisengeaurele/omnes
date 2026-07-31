@@ -45,6 +45,7 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await expect(window.getByText('Core')).toBeVisible({ timeout: 10_000 });
   await expect(window.getByText(/^v\d+\.\d+\.\d+$/)).toBeVisible();
   await expect(window.getByText('Database connected')).toBeVisible({ timeout: 10_000 });
+  await expect(window.getByText('License: DEVELOPMENT')).toBeVisible();
   await expect(window.getByText('e2e-admin')).toBeVisible();
 
   await app.close();

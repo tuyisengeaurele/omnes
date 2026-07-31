@@ -1,6 +1,11 @@
 import { app, ipcMain } from 'electron';
 import log from 'electron-log/main';
-import { IPC_CHANNELS, type DatabaseHealthResult, type Session } from '@shared/ipc';
+import {
+  IPC_CHANNELS,
+  type DatabaseHealthResult,
+  type LicenseInfo,
+  type Session,
+} from '@shared/ipc';
 import { checkDatabaseHealth } from '../services/core/database';
 import {
   createFirstAdmin,
@@ -11,6 +16,7 @@ import {
   unlock,
 } from '../services/core/auth';
 import { getLastUsername, setLastUsername } from '../services/core/preferences';
+import { getActiveLicense } from '../services/core/license-store';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -54,4 +60,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getSession, (): Session | null => getSession());
 
   ipcMain.handle(IPC_CHANNELS.getLastUsername, (): string | null => getLastUsername());
+
+  ipcMain.handle(IPC_CHANNELS.getLicenseInfo, (): LicenseInfo => getActiveLicense());
 }

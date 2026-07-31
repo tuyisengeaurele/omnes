@@ -18,6 +18,7 @@ export function AppShell() {
   const { t } = useTranslation();
   const [version, setVersion] = useState('');
   const [isDatabaseConnected, setIsDatabaseConnected] = useState<boolean | null>(null);
+  const [licenseTier, setLicenseTier] = useState<string | null>(null);
   const isSidebarCollapsed = useUiStore((state) => state.isSidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const session = useAuthStore((state) => state.session);
@@ -53,6 +54,21 @@ export function AppShell() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    window.omnes
+      ?.getLicenseInfo()
+      .then((info) => {
+        if (!cancelled) setLicenseTier(info.tier);
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to read license info', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div className={styles.shell}>
       <header className={styles.titlebar}>
@@ -61,6 +77,11 @@ export function AppShell() {
         {isDatabaseConnected !== null && (
           <span className={styles.dbStatus} data-connected={isDatabaseConnected}>
             {t(isDatabaseConnected ? 'shell.databaseConnected' : 'shell.databaseOffline')}
+          </span>
+        )}
+        {licenseTier && (
+          <span className={styles.licenseTier}>
+            {t('shell.license')}: {licenseTier}
           </span>
         )}
         {session && (

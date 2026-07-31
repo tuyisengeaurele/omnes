@@ -34,6 +34,11 @@
   color: #e5484d;
 }
 
+.licenseTier {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
 .userControls {
   margin-left: auto;
   display: flex;
