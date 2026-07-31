@@ -7,6 +7,26 @@ const KEYS_DIR = path.resolve(import.meta.dirname, '../keys');
 const PRIVATE_KEY_PATH = path.join(KEYS_DIR, 'license-private-key.pem');
 const PUBLIC_KEY_PATH = path.join(KEYS_DIR, 'license-public-key.pem');
 
+// Must match LicenseTier and Feature in shared/ipc.ts exactly. Signing a
+// license with a typo'd tier/addon here would either produce a license
+// isFeatureEnabled() can't correctly evaluate, or — for a typo'd tier —
+// accidentally grant unconditional access the same way DEVELOPMENT does,
+// since isFeatureEnabled() treats anything that isn't DEVELOPMENT as BASE.
+const VALID_TIERS = ['DEVELOPMENT', 'BASE'];
+const VALID_FEATURES = [
+  'pos',
+  'inventory',
+  'receipts',
+  'reports_basic',
+  'administration',
+  'mobile_money',
+  'crm',
+  'loyalty',
+  'store_credit',
+  'reports_advanced',
+  'multi_warehouse',
+];
+
 // Must match the canonicalize() in electron/main/services/core/license.ts
 // exactly, or signatures produced here will fail to verify there.
 function canonicalize(payload) {
@@ -36,6 +56,24 @@ function generateKeypair(force) {
 function signLicense({ tier, addons, customerName, expiresAt, output }) {
   if (!existsSync(PRIVATE_KEY_PATH)) {
     console.error(`No private key found at ${PRIVATE_KEY_PATH}. Run "keygen" first.`);
+    process.exit(1);
+  }
+
+  if (!VALID_TIERS.includes(tier)) {
+    console.error(`Invalid --tier "${tier}". Must be one of: ${VALID_TIERS.join(', ')}`);
+    process.exit(1);
+  }
+
+  const invalidAddons = addons.filter((addon) => !VALID_FEATURES.includes(addon));
+  if (invalidAddons.length > 0) {
+    console.error(
+      `Invalid --addons value(s): ${invalidAddons.join(', ')}. Must be from: ${VALID_FEATURES.join(', ')}`,
+    );
+    process.exit(1);
+  }
+
+  if (expiresAt && Number.isNaN(new Date(expiresAt).getTime())) {
+    console.error(`Invalid --expires "${expiresAt}". Must be a valid ISO date string.`);
     process.exit(1);
   }
 
