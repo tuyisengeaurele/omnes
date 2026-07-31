@@ -39,7 +39,7 @@ shared/
 src/app/
 └── AppShell.tsx               # + license tier badge, same pattern as version/DB badges
 scripts/
-└── generate-license.ts        # dev tooling: generate keypair, sign license files
+└── generate-license.mjs       # dev tooling: generate keypair, sign license files
 keys/                           # gitignored — private key lives here, never committed
 ```
 
