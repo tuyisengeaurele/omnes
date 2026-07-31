@@ -131,10 +131,40 @@ git checkout -b feature/licensing
 Run: `node scripts/generate-license.mjs`
 Expected: prints the usage message (no command given) and exits 1 — confirms the script itself has no syntax errors before relying on it in the next task.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 4: Fix eslint.config.js for plain JS/mjs files**
+
+Run: `pnpm lint`
+Expected: fails with 14 `no-undef` errors on `console`/`process`/`Buffer` inside `generate-license.mjs`. This is real, not a false positive — `eslint.config.js`'s `js.configs.recommended` block has no Node globals declared, and every `.ts` file so far has been shielded from this because `tseslint.configs.recommended` effectively disables `no-undef` for TypeScript files (relying on `tsc` to catch undefined references instead) — a plain `.mjs` file isn't covered by that override and hits the base rule directly.
+
+In `eslint.config.js`, add a new block (before the existing `files: ['**/*.{ts,tsx}']` block):
+
+```javascript
+  {
+    // Plain JS/mjs files (standalone dev scripts) aren't covered by the
+    // TypeScript-aware block below, so they need Node globals declared
+    // explicitly or `no-undef` flags console/process/Buffer as unknown.
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+        Buffer: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+      },
+    },
+  },
+```
+
+Re-run: `pnpm lint`
+Expected: zero errors.
+
+- [ ] **Step 5: Commit**
 
 ```bash
-git add scripts/generate-license.mjs .gitignore
+git add scripts/generate-license.mjs .gitignore eslint.config.js
 git commit -m "Add license keypair generation and signing script"
 ```
 
