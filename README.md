@@ -33,9 +33,10 @@ This starts the Electron app with hot reload on the renderer.
 
 ## Project status
 
-This repository currently contains the application foundation: the Electron/React/
-TypeScript shell, tooling, and CI. It does not yet include a database, authentication,
-or any business modules — see [Architecture](docs/architecture.md) and
+This repository currently contains the application foundation (Electron/React/
+TypeScript shell, tooling, CI), a PostgreSQL database layer (Prisma), and local
+authentication (login, session locking, audit logging). It does not yet include
+licensing or any business modules — see [Architecture](docs/architecture.md) and
 [docs/superpowers/specs/](docs/superpowers/specs/) for what's built and what's planned
 next.
 
