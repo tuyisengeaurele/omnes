@@ -4,6 +4,7 @@
   "shell.comingSoon": "Bientôt disponible",
   "shell.databaseConnected": "Base de données connectée",
   "shell.databaseOffline": "Base de données hors ligne",
+  "shell.license": "Licence",
   "auth.username": "Nom d'utilisateur",
   "auth.password": "Mot de passe",
   "auth.confirmPassword": "Confirmer le mot de passe",
