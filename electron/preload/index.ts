@@ -17,6 +17,7 @@ const api: AppApi = {
     ipcRenderer.on(IPC_CHANNELS.sessionLocked, listener);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.sessionLocked, listener);
   },
+  getLicenseInfo: () => ipcRenderer.invoke(IPC_CHANNELS.getLicenseInfo),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);
