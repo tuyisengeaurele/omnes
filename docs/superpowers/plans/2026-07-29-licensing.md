@@ -737,37 +737,43 @@ git commit -m "Add license tier badge to the shell"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Confirm the development fallback with no license file**
+**A userData-path gotcha, worth knowing before you conclude the wrong thing is broken:** the most deterministic way to drive these scenarios is the same Playwright Electron harness Task 9's e2e test and every prior sub-project's manual verification used — launch `out/main/index.js` directly via `electron.launch({ args: [...] })` in a throwaway script. But launched that way (a bare script path, not through `pnpm dev`'s normal electron-vite invocation, and not through a real packaged install), Electron cannot determine the app's identity from `package.json` and falls back to its generic default name, `"Electron"` — so `app.getPath('userData')` resolves to `%APPDATA%\Electron`, **not** `%APPDATA%\omnes`. This was found by adding a temporary debug log to `license-store.ts`, rebuilding, and tracing the actual path Electron used — not assumed. It's a test-harness artifact, not a production bug: a real packaged install (built via `pnpm package`, Foundation's electron-builder config) gets its correct identity from `productName: OMNES` and resolves userData correctly. `pnpm dev` also resolves it correctly (electron-vite's dev invocation preserves the app identity). Only this specific "launch a bare script path" pattern hits the fallback — but that's exactly the pattern used here and in Task 9, so use `%APPDATA%\Electron\license.omneslicense` for every step below, not `%APPDATA%\omnes\license.omneslicense`.
 
-Run: `pnpm dev`
-Expected: the shell shows `License: DEVELOPMENT` (no license file exists anywhere yet).
-Stop the dev server (`Ctrl+C`).
+- [ ] **Step 1: Build and confirm the development fallback with no license file**
+
+```bash
+pnpm build
+```
+
+Write a throwaway script (do not commit it), e.g. `debug-license.mjs`, that launches `out/main/index.js` via `electron.launch()`, creates a first-admin account if none exists (or logs in if one does — sessions don't persist across process launches), then evaluates `window.omnes.getLicenseInfo()` and reads the rendered `License: ...` text from the DOM. Run it.
+
+Expected: `{"licenseId":"development","tier":"DEVELOPMENT",...}` and the shell shows `License: DEVELOPMENT` — no license file exists anywhere yet.
 
 - [ ] **Step 2: Sign a real BASE license and confirm it's picked up**
 
-Sign a license into the app's actual userData directory so the running app finds it. First find the userData path (it's OS-specific; on Windows it's `%APPDATA%\omnes`):
-
 ```bash
-node scripts/generate-license.mjs sign --tier BASE --customer "Test Shop" --output "$APPDATA/omnes/license.omneslicense"
+mkdir -p "$APPDATA/Electron"
+node scripts/generate-license.mjs sign --tier BASE --customer "Test Shop" --output "$APPDATA/Electron/license.omneslicense"
 ```
 
-Run: `pnpm dev`
-Expected: the shell now shows `License: BASE` instead of `DEVELOPMENT` — a real signature verification against the real embedded public key, not a mock. Stop the dev server.
+Run the debug script again.
+Expected: `getLicenseInfo()` now returns the real signed payload (`tier: "BASE"`, `customerName: "Test Shop"`, a real `licenseId`) and the shell shows `License: BASE` — a real signature verification against the real embedded public key, not a mock.
 
 - [ ] **Step 3: Confirm a tampered license falls back gracefully**
 
-Open `%APPDATA%\omnes\license.omneslicense` in a text editor and change any character inside `"payload"` (e.g. edit `"customerName"`), leaving `"signature"` untouched. Save it.
+Edit `$APPDATA/Electron/license.omneslicense`: change any value inside `"payload"` (e.g. `"customerName"`), leaving `"signature"` untouched.
 
-Run: `pnpm dev`
-Expected: the shell shows `License: DEVELOPMENT` again (not a crash, not `BASE`) — confirms the fallback path in `license-store.ts` actually triggers on a real invalid signature, not just in the unit tests. Check the terminal running `pnpm dev` for a `[warn]` line from electron-log about the invalid license. Stop the dev server.
+Run the debug script again.
+Expected: `getLicenseInfo()` returns `tier: "DEVELOPMENT"` again (not a crash, not `BASE`) — confirms the fallback path in `license-store.ts` actually triggers on a real invalid signature, not just in the unit tests. Check `$APPDATA/Electron/logs/main.log` for a `[warn]` line: `License file present but invalid, falling back to development license Error: License signature is invalid`.
 
-- [ ] **Step 4: Clean up the test license**
+- [ ] **Step 4: Clean up**
 
 ```bash
-rm "$APPDATA/omnes/license.omneslicense"
+rm "$APPDATA/Electron/license.omneslicense"
+rm debug-license.mjs
 ```
 
-Leaving a stray tampered license file in userData would make every subsequent manual test run confusingly show `DEVELOPMENT` for the wrong reason.
+Leaving a stray license file in this userData directory would make Task 9's e2e test (which uses the same launch pattern and expects `DEVELOPMENT`) fail confusingly. Nothing from this task gets committed — it's a verification step, not a deliverable, the same way Foundation's Task 17 and Database Foundation's Task 10 weren't.
 
 ---
 
