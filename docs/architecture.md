@@ -153,6 +153,55 @@ because no IPC handler currently returns real business data; every handler that
 does needs to check the session's lock state itself, not assume the UI gate already
 enforced it.
 
+## Licensing
+
+License validation is entirely offline: a JSON file (`{ payload, signature }`) whose
+`signature` is an Ed25519 signature over `payload`'s canonical serialization
+(`JSON.stringify(payload, Object.keys(payload).sort())` — sorted keys make the
+serialization deterministic regardless of how the object was constructed, which
+matters because the signer (`scripts/generate-license.mjs`) and the verifier
+(`electron/main/services/core/license.ts`) are two independent pieces of code that
+must produce byte-identical output for the same payload). The signing keypair is
+Ed25519 via Node's built-in `crypto` — no new dependency, no native binary, same
+packaging story the database layer established. The private key lives in `keys/`
+(gitignored, generated once by `scripts/generate-license.mjs keygen`, and unlike
+`.env` it is not casually regeneratable — losing it invalidates every license ever
+signed with it). The public key is embedded directly in source
+(`license-public-key.ts`) since its only job is verifying signatures, not keeping
+anything secret.
+
+`license.ts` is pure Node `crypto` logic — no Electron import, unit-testable
+directly against throwaway test keypairs (`tests/unit/license.test.ts` never touches
+the real embedded key or `keys/`). `license-store.ts` is the thin Electron-aware
+wrapper that reads the actual file from `app.getPath('userData')` and falls back to
+a hardcoded `DEVELOPMENT` license — the only tier with every feature flag on — if no
+file exists or it fails verification (logged via electron-log, not surfaced to the
+renderer). The license is read once and cached for the process lifetime; installing
+a new license file requires an app restart to take effect.
+
+**Test-harness gotcha, worth knowing before debugging a "wrong" userData path
+again:** `app.getPath('userData')` depends on how Electron is launched. `pnpm dev`
+and a real packaged install (`pnpm package`, which embeds `productName: OMNES`) both
+resolve it to `%APPDATA%\omnes` correctly. But launching `out/main/index.js`
+directly as a bare script path — which is exactly what every manual-verification
+debug script and the Playwright e2e tests in this project do — leaves Electron
+unable to determine the app's identity from `package.json`, so it falls back to the
+generic default name `"Electron"`, resolving to `%APPDATA%\Electron` instead. This
+was traced with a temporary debug log, not assumed. It only affects this one launch
+pattern, but that pattern is exactly what this project's own test/debug tooling
+uses, so it's worth remembering rather than rediscovering.
+
+Feature flags are a simple `TIER_FEATURES`-style lookup: `isFeatureEnabled(feature,
+license)` returns `true` unconditionally for `DEVELOPMENT`, and otherwise checks a
+hardcoded `BASE_FEATURES` list (POS, inventory, receipts, basic reports,
+administration, mobile money — the master brief's base tier) or `license.addons`
+(CRM, loyalty, store credit, advanced reports, multi-warehouse — the add-on tiers).
+No module actually calls this yet; the seam exists for when one does.
+
+Online activation, a license-management UI, and hardware/machine locking are all
+explicitly out of scope — see the design spec's "Out of scope" section for why each
+one is deferred rather than silently missing.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -199,9 +248,11 @@ configured in both `electron.vite.config.ts` and `vitest.config.ts`.
 ## Testing
 
 Unit tests (Vitest + Testing Library) cover pieces with real logic: the `cn` class-name
-utility, `AppShell`'s sidebar rendering, and `auth.ts`'s login/bootstrap/session logic
-against the real local database (forced to Vitest's `node` environment via a
-`// @vitest-environment node` comment, since it's Node/Prisma logic, not DOM logic).
+utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session logic
+against the real local database, and `license.ts`'s signature verification against
+throwaway test keypairs (all three of the latter forced to Vitest's `node` environment
+via a `// @vitest-environment node` comment, since they're Node/Prisma/crypto logic,
+not DOM logic).
 The auth and e2e test suites delete all `User` rows as part of their own setup and
 teardown to get a known-empty starting state — there's no separate local test
 database yet, so running `pnpm test` or `pnpm test:e2e` locally is destructive to
