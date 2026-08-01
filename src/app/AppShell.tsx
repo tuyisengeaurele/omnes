@@ -3,6 +3,7 @@ import { Link, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../lib/store/uiStore';
 import { useAuthStore } from '../lib/store/authStore';
+import { NotificationBell } from '../modules/core/NotificationBell';
 import styles from './AppShell.module.css';
 
 const MODULE_NAV = [
@@ -84,6 +85,7 @@ export function AppShell() {
             {t('shell.license')}: {licenseTier}
           </span>
         )}
+        <NotificationBell />
         {session && (
           <div className={styles.userControls}>
             <span className={styles.username}>{session.username}</span>

@@ -11,6 +11,7 @@ import {
 } from './backup-store';
 import { getSession } from './auth';
 import { disconnectDatabase } from './database';
+import { notify } from './notifications';
 import type { BackupRecord, BackupResult } from '@shared/ipc';
 
 function getBackupsDir(): string {
@@ -52,9 +53,19 @@ export function performManualBackup(): Promise<BackupResult> {
     try {
       const { filePath, sizeBytes } = await createBackup(getBackupsDir());
       const record = addBackupRecord(path.basename(filePath), sizeBytes);
+      notify({
+        severity: 'info',
+        title: 'Backup created',
+        message: `A new backup (${record.filename}) was created successfully.`,
+      });
       return { success: true, message: 'Backup created', record };
     } catch (error) {
       log.error('Backup failed', error);
+      notify({
+        severity: 'error',
+        title: 'Backup failed',
+        message: toErrorMessage(error),
+      });
       return { success: false, message: toErrorMessage(error), record: null };
     }
   });

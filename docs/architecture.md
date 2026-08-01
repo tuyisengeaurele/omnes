@@ -298,6 +298,59 @@ single-shopkeeper deployment model, not an oversight, but the next handler
 that performs an irreversible or otherwise sensitive action should make the
 same call restore did, not assume the UI already gates it.
 
+## Notifications
+
+`notification-rules.ts` holds the only real logic in this sub-project —
+`hasLicenseExpired`/`isLicenseExpiringSoon`, pure date math with no
+Electron or store dependency, unit-tested directly against `null`
+(the `DEVELOPMENT` license's `expiresAt`, which correctly never triggers
+either check), and both sides of the 14-day warning threshold. Everything
+else is plumbing: `notification-store.ts` is an `electron-store`-backed
+history (its own file, `name: 'notifications'`, same pattern as
+`backup-store.ts`), and `notifications.ts` is the Electron-aware
+orchestration layer every other file calls into — mirroring how
+`backup-manager.ts` sits above `backup-store.ts`.
+
+`notify()` upserts by an optional `id`: most callers omit it and get a
+fresh UUID (each backup attempt — manual or scheduled, both go through
+`performManualBackup()` — is its own notification), but the license-expiry
+scheduler always passes the same stable id (`'license-expiry'`), so a
+condition that's still true on the next 6-hourly check refreshes the
+existing entry (new timestamp, `read: false` again) instead of
+accumulating duplicates. An existing `license-expiry` notification is
+deliberately left alone if the license is renewed later in the same
+process — `license-store.ts` already caches the active license for the
+process lifetime and can't observe a renewal without a restart either,
+so this scheduler inherits that same constraint rather than working around
+it.
+
+Pushing a live update to the renderer needs a `BrowserWindow` reference,
+but `notify()` gets called from several unrelated places (`backup-
+manager.ts`, the license scheduler, and every future module that needs to
+raise a notification) — threading a window reference through every one of
+those call sites would be worse than the alternative: `notifications.ts`
+exposes `registerMainWindow(window)`, called once from `main/index.ts`
+right after `createMainWindow()`, and stores it module-level. `notify()`
+persists to the store first and only then attempts the push
+(`mainWindow?.webContents.send(...)`), so even the narrow startup race
+where `notify()` fires before a window is registered still isn't lost —
+the renderer picks it up on its next `notification:list` call regardless
+(every mount).
+
+The titlebar bell (`NotificationBell.tsx`, `src/modules/core/`) is the
+first Core-module UI in this app that isn't gated by a route — it lives
+directly in `AppShell`'s titlebar next to the license badge, since
+notifications need to be visible everywhere, not just on one page.
+`NotificationPanel.tsx`'s two per-row actions (mark-read, dismiss) are
+sibling `<button>` elements, not nested — a `<button>` inside a `<button>`
+is invalid HTML and breaks keyboard navigation, which is why the row isn't
+just one big clickable `<li>`.
+
+This sub-project only wires in the two triggers Core modules can currently
+produce (license expiry, backup outcome) — every later module (low stock,
+sync failures, etc.) calls `notify()` from `notifications.ts` the same way
+`backup-manager.ts` does, rather than building its own notification path.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -346,10 +399,10 @@ configured in both `electron.vite.config.ts` and `vitest.config.ts`.
 Unit tests (Vitest + Testing Library) cover pieces with real logic: the `cn` class-name
 utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session logic
 against the real local database, `license.ts`'s signature verification against
-throwaway test keypairs, and `backup.ts`'s binary discovery, create/verify/restore
-round trip, and due-date scheduling math (all forced to Vitest's `node` environment
-via a `// @vitest-environment node` comment, since they're Node/Prisma/crypto/
-child-process logic, not DOM logic).
+throwaway test keypairs, `backup.ts`'s binary discovery, create/verify/restore
+round trip, and due-date scheduling math, and `notification-rules.ts`'s license-expiry
+date math (all forced to Vitest's `node` environment via a `// @vitest-environment
+node` comment, since they're Node/Prisma/crypto/child-process logic, not DOM logic).
 The auth and e2e test suites delete all `User` rows as part of their own setup and
 teardown to get a known-empty starting state — there's no separate local test
 database yet, so running `pnpm test` or `pnpm test:e2e` locally is destructive to
