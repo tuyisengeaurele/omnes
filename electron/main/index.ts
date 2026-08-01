@@ -6,6 +6,8 @@ import { registerIpcHandlers } from './ipc';
 import { startBackupScheduler } from './services/core/backup-scheduler';
 import { disconnectDatabase } from './services/core/database';
 import { startIdleMonitor } from './services/core/idle';
+import { startNotificationScheduler } from './services/core/notification-scheduler';
+import { registerMainWindow } from './services/core/notifications';
 
 const isDev = !app.isPackaged;
 const dirname = import.meta.dirname;
@@ -65,6 +67,8 @@ void app.whenReady().then(() => {
   const mainWindow = createMainWindow();
   startIdleMonitor(mainWindow);
   startBackupScheduler();
+  registerMainWindow(mainWindow);
+  startNotificationScheduler();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
