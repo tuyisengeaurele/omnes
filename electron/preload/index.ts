@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { IPC_CHANNELS, type AppApi } from '@shared/ipc';
+import { IPC_CHANNELS, type AppApi, type NotificationRecord } from '@shared/ipc';
 
 const api: AppApi = {
   getAppVersion: () => ipcRenderer.invoke(IPC_CHANNELS.getAppVersion),
@@ -23,6 +23,16 @@ const api: AppApi = {
   verifyBackup: (id) => ipcRenderer.invoke(IPC_CHANNELS.verifyBackup, id),
   restoreBackup: (id) => ipcRenderer.invoke(IPC_CHANNELS.restoreBackup, id),
   revealBackupInFolder: (id) => ipcRenderer.invoke(IPC_CHANNELS.revealBackupInFolder, id),
+  listNotifications: () => ipcRenderer.invoke(IPC_CHANNELS.listNotifications),
+  markNotificationRead: (id) => ipcRenderer.invoke(IPC_CHANNELS.markNotificationRead, id),
+  markAllNotificationsRead: () => ipcRenderer.invoke(IPC_CHANNELS.markAllNotificationsRead),
+  clearNotification: (id) => ipcRenderer.invoke(IPC_CHANNELS.clearNotification, id),
+  onNotificationCreated: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, notification: NotificationRecord) =>
+      callback(notification);
+    ipcRenderer.on(IPC_CHANNELS.notificationCreated, listener);
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.notificationCreated, listener);
+  },
 };
 
 contextBridge.exposeInMainWorld('omnes', api);

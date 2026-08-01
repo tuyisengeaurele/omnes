@@ -6,6 +6,7 @@ import {
   type BackupResult,
   type DatabaseHealthResult,
   type LicenseInfo,
+  type NotificationRecord,
   type Session,
 } from '@shared/ipc';
 import {
@@ -26,6 +27,12 @@ import {
 } from '../services/core/auth';
 import { getLastUsername, setLastUsername } from '../services/core/preferences';
 import { getActiveLicense } from '../services/core/license-store';
+import {
+  clearNotification,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../services/core/notifications';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -86,5 +93,17 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.revealBackupInFolder, (_event, id: string): void =>
     revealBackupInFolder(id),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.listNotifications, (): NotificationRecord[] => listNotifications());
+
+  ipcMain.handle(IPC_CHANNELS.markNotificationRead, (_event, id: string): void =>
+    markNotificationRead(id),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.markAllNotificationsRead, (): void => markAllNotificationsRead());
+
+  ipcMain.handle(IPC_CHANNELS.clearNotification, (_event, id: string): void =>
+    clearNotification(id),
   );
 }
