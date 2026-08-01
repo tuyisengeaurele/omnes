@@ -17,6 +17,8 @@ interface CommandResult {
   stderr: string;
 }
 
+const COMMAND_TIMEOUT_MS = 5 * 60 * 1000;
+
 function runCommand(
   command: string,
   args: string[],
@@ -25,13 +27,29 @@ function runCommand(
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { env });
     let stderr = '';
+    let timedOut = false;
+
+    // Without this, a hung pg_dump/pg_restore (e.g. blocked on a lock) would
+    // never resolve this promise — leaving withScratchDatabase's `finally`
+    // cleanup unreachable and the scratch database orphaned indefinitely.
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill();
+    }, COMMAND_TIMEOUT_MS);
+
     child.stderr.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
     });
     child.on('error', (error) => {
+      clearTimeout(timeout);
       reject(error);
     });
     child.on('close', (code) => {
+      clearTimeout(timeout);
+      if (timedOut) {
+        resolve({ code: 1, stderr: `${stderr}\nTimed out after ${COMMAND_TIMEOUT_MS}ms` });
+        return;
+      }
       resolve({ code: code ?? 1, stderr });
     });
   });
@@ -210,6 +228,7 @@ export async function restoreBackup(filePath: string): Promise<void> {
     [
       '--clean',
       '--if-exists',
+      '--single-transaction',
       '-h',
       connection.host,
       '-p',

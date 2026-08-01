@@ -18,6 +18,7 @@ export function BackupPanel() {
   const [confirmingRestoreId, setConfirmingRestoreId] = useState<string | null>(null);
   const [confirmText, setConfirmText] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const isOperationInProgress = isBackingUp || busyId !== null;
 
   const refreshBackups = async () => {
     const list = await window.omnes?.listBackups();
@@ -73,7 +74,11 @@ export function BackupPanel() {
   return (
     <div className={styles.panel}>
       <div className={styles.toolbar}>
-        <button type="button" onClick={() => void handleBackupNow()} disabled={isBackingUp}>
+        <button
+          type="button"
+          onClick={() => void handleBackupNow()}
+          disabled={isOperationInProgress}
+        >
           {isBackingUp ? t('backup.backingUp') : t('backup.backupNow')}
         </button>
       </div>
@@ -104,7 +109,7 @@ export function BackupPanel() {
                 <button
                   type="button"
                   onClick={() => void handleVerify(backup.id)}
-                  disabled={busyId === backup.id}
+                  disabled={isOperationInProgress}
                 >
                   {t('backup.verify')}
                 </button>
@@ -119,7 +124,7 @@ export function BackupPanel() {
                     <button
                       type="button"
                       onClick={() => void handleRestore(backup.id)}
-                      disabled={confirmText !== 'RESTORE' || busyId === backup.id}
+                      disabled={confirmText !== 'RESTORE' || isOperationInProgress}
                     >
                       {t('backup.confirmRestore')}
                     </button>
@@ -134,7 +139,11 @@ export function BackupPanel() {
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setConfirmingRestoreId(backup.id)}>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRestoreId(backup.id)}
+                    disabled={isOperationInProgress}
+                  >
                     {t('backup.restore')}
                   </button>
                 )}

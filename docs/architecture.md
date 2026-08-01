@@ -252,7 +252,24 @@ that, not be part of what gets restored over.
 directory (`{userData}/backups`), converts thrown errors into the
 `BackupResult` shape crossing IPC (`{ success, message, record }`, never a
 raw error object), and is what every IPC handler and the scheduler call
-into rather than either lower-level file directly.
+into rather than either lower-level file directly. `createBackup`,
+`verifyBackup`, and `restoreBackup` all touch shared state — the live
+database, or the one hardcoded `omnes_backup_verify` scratch database name
+— so `backup-manager.ts` serializes them behind a single in-process
+`operationInProgress` flag (`withExclusiveLock`); a second call while one is
+already running gets a clean "already in progress" result rather than
+racing on the same scratch database or the live one. `restoreBackup`
+additionally requires `getSession()?.role === 'ADMIN'` — the first IPC
+handler in the app to check role at all, added deliberately because this is
+also the first handler to attach a genuinely destructive, irreversible
+capability to what was previously an inert disabled placeholder. Every
+`pg_dump`/`pg_restore` invocation also has a 5-minute timeout
+(`COMMAND_TIMEOUT_MS` in `backup.ts`) that kills the child process if it
+hangs — without it, a stuck restore (e.g. blocked on a lock) would leave
+`withScratchDatabase`'s cleanup `finally` unreachable forever. The real
+restore additionally runs with `--single-transaction` so a mid-restore
+failure rolls back atomically instead of leaving the database partially
+dropped and partially recreated.
 
 `backup-scheduler.ts` follows `idle.ts`'s `setInterval` pattern: it checks
 whether a backup is due (`isBackupDue()` in `backup.ts` — pure date math,
@@ -266,7 +283,20 @@ is now a real route (`/admin` → `AdminPage` → `BackupPanel`), the first
 sub-project to give it content. Restoring requires typing the literal word
 `RESTORE` into a confirmation field before the button enables — deliberately
 more friction than anything else in the app, since it's the only action that
-silently replaces a shop's live data.
+silently replaces a shop's live data. This confirmation gate, plus the
+ADMIN-only IPC check above, is verified end-to-end in
+`tests/e2e/app.spec.ts`: the confirm button is asserted disabled until
+`RESTORE` is typed, then a real restore is completed as the bootstrapped
+ADMIN session.
+
+**Scope boundary worth knowing before adding the next destructive IPC
+handler:** restore is the only handler in the app that checks `session.role`
+at all — every other handler (including `createBackup`/`verifyBackup`
+themselves) is reachable by any authenticated session regardless of role,
+same as the rest of the app today. That's an accepted gap for a
+single-shopkeeper deployment model, not an oversight, but the next handler
+that performs an irreversible or otherwise sensitive action should make the
+same call restore did, not assume the UI already gates it.
 
 ## IPC contract
 
