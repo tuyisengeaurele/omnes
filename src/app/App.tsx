@@ -9,6 +9,7 @@ import { AuthGate } from './AuthGate';
 import { Dashboard } from '../modules/core/Dashboard';
 import { AdminPage } from '../modules/admin/AdminPage';
 import { ProductsPage } from '../modules/inventory/ProductsPage';
+import { PosPage } from '../modules/pos/PosPage';
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
@@ -46,6 +47,7 @@ export function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="inventory" element={<ProductsPage />} />
+                <Route path="pos" element={<PosPage />} />
               </Route>
             </Routes>
           </HashRouter>
