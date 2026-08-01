@@ -21,6 +21,10 @@ export const IPC_CHANNELS = {
   clearNotification: 'notification:clear',
   clearAllNotifications: 'notification:clear-all',
   notificationCreated: 'notification:created',
+  listProducts: 'product:list',
+  createProduct: 'product:create',
+  updateProduct: 'product:update',
+  setProductActive: 'product:set-active',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -87,6 +91,34 @@ export interface NotificationRecord {
   read: boolean;
 }
 
+export interface Product {
+  id: string;
+  name: string;
+  sku: string;
+  barcode: string | null;
+  category: string;
+  price: number;
+  stockQuantity: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductInput {
+  name: string;
+  sku: string;
+  barcode: string | null;
+  category: string;
+  price: number;
+  stockQuantity: number;
+}
+
+export interface ProductResult {
+  success: boolean;
+  message: string;
+  product: Product | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -110,4 +142,8 @@ export interface AppApi {
   clearNotification: (id: string) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   onNotificationCreated: (callback: (notification: NotificationRecord) => void) => () => void;
+  listProducts: (includeInactive?: boolean) => Promise<Product[]>;
+  createProduct: (input: ProductInput) => Promise<ProductResult>;
+  updateProduct: (id: string, input: Partial<ProductInput>) => Promise<ProductResult>;
+  setProductActive: (id: string, isActive: boolean) => Promise<ProductResult>;
 }
