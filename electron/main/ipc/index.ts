@@ -7,6 +7,9 @@ import {
   type DatabaseHealthResult,
   type LicenseInfo,
   type NotificationRecord,
+  type Product,
+  type ProductInput,
+  type ProductResult,
   type Session,
 } from '@shared/ipc';
 import {
@@ -34,6 +37,12 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from '../services/core/notifications';
+import {
+  createProduct,
+  listProducts,
+  setProductActive,
+  updateProduct,
+} from '../services/core/products';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -109,4 +118,26 @@ export function registerIpcHandlers(): void {
   );
 
   ipcMain.handle(IPC_CHANNELS.clearAllNotifications, (): void => clearAllNotifications());
+
+  ipcMain.handle(
+    IPC_CHANNELS.listProducts,
+    (_event, includeInactive?: boolean): Promise<Product[]> => listProducts(includeInactive),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.createProduct,
+    (_event, input: ProductInput): Promise<ProductResult> => createProduct(input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.updateProduct,
+    (_event, id: string, input: Partial<ProductInput>): Promise<ProductResult> =>
+      updateProduct(id, input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.setProductActive,
+    (_event, id: string, isActive: boolean): Promise<ProductResult> =>
+      setProductActive(id, isActive),
+  );
 }
