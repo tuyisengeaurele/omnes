@@ -48,5 +48,20 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await expect(window.getByText('License: DEVELOPMENT')).toBeVisible();
   await expect(window.getByText('e2e-admin')).toBeVisible();
 
+  await window.getByRole('link', { name: 'Administration' }).click();
+  await window.getByRole('button', { name: 'Back up now' }).click();
+  await expect(window.getByText(/^omnes-backup-/)).toBeVisible({ timeout: 30_000 });
+
+  // Restore requires typing the literal word RESTORE before it's enabled —
+  // proves both the confirmation gate and that an ADMIN session (the only
+  // role createFirstAdmin ever creates) can actually complete a restore.
+  await window.getByRole('button', { name: 'Restore', exact: true }).click();
+  const confirmButton = window.getByRole('button', { name: 'Confirm restore' });
+  await expect(confirmButton).toBeDisabled();
+  await window.getByPlaceholder('RESTORE').fill('RESTORE');
+  await expect(confirmButton).toBeEnabled();
+  await confirmButton.click();
+  await expect(window.getByText('Restore completed')).toBeVisible({ timeout: 30_000 });
+
   await app.close();
 });

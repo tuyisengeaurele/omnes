@@ -2,10 +2,19 @@ import { app, ipcMain } from 'electron';
 import log from 'electron-log/main';
 import {
   IPC_CHANNELS,
+  type BackupRecord,
+  type BackupResult,
   type DatabaseHealthResult,
   type LicenseInfo,
   type Session,
 } from '@shared/ipc';
+import {
+  listBackups,
+  performManualBackup,
+  performRestore,
+  performVerification,
+  revealBackupInFolder,
+} from '../services/core/backup-manager';
 import { checkDatabaseHealth } from '../services/core/database';
 import {
   createFirstAdmin,
@@ -62,4 +71,20 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getLastUsername, (): string | null => getLastUsername());
 
   ipcMain.handle(IPC_CHANNELS.getLicenseInfo, (): LicenseInfo => getActiveLicense());
+
+  ipcMain.handle(IPC_CHANNELS.createBackup, (): Promise<BackupResult> => performManualBackup());
+
+  ipcMain.handle(IPC_CHANNELS.listBackups, (): BackupRecord[] => listBackups());
+
+  ipcMain.handle(IPC_CHANNELS.verifyBackup, (_event, id: string): Promise<BackupResult> =>
+    performVerification(id),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.restoreBackup, (_event, id: string): Promise<BackupResult> =>
+    performRestore(id),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.revealBackupInFolder, (_event, id: string): void =>
+    revealBackupInFolder(id),
+  );
 }

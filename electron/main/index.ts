@@ -3,6 +3,7 @@ import { app, BrowserWindow, session, shell } from 'electron';
 import { join } from 'node:path';
 import log from 'electron-log/main';
 import { registerIpcHandlers } from './ipc';
+import { startBackupScheduler } from './services/core/backup-scheduler';
 import { disconnectDatabase } from './services/core/database';
 import { startIdleMonitor } from './services/core/idle';
 
@@ -63,6 +64,7 @@ void app.whenReady().then(() => {
   registerIpcHandlers();
   const mainWindow = createMainWindow();
   startIdleMonitor(mainWindow);
+  startBackupScheduler();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

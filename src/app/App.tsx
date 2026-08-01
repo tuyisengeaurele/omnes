@@ -7,6 +7,7 @@ import { SplashScreen } from './SplashScreen';
 import { AppShell } from './AppShell';
 import { AuthGate } from './AuthGate';
 import { Dashboard } from '../modules/core/Dashboard';
+import { AdminPage } from '../modules/admin/AdminPage';
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
@@ -42,6 +43,7 @@ export function App() {
             <Routes>
               <Route element={<AppShell />}>
                 <Route index element={<Dashboard />} />
+                <Route path="admin" element={<AdminPage />} />
               </Route>
             </Routes>
           </HashRouter>

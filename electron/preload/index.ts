@@ -18,6 +18,11 @@ const api: AppApi = {
     return () => ipcRenderer.removeListener(IPC_CHANNELS.sessionLocked, listener);
   },
   getLicenseInfo: () => ipcRenderer.invoke(IPC_CHANNELS.getLicenseInfo),
+  createBackup: () => ipcRenderer.invoke(IPC_CHANNELS.createBackup),
+  listBackups: () => ipcRenderer.invoke(IPC_CHANNELS.listBackups),
+  verifyBackup: (id) => ipcRenderer.invoke(IPC_CHANNELS.verifyBackup, id),
+  restoreBackup: (id) => ipcRenderer.invoke(IPC_CHANNELS.restoreBackup, id),
+  revealBackupInFolder: (id) => ipcRenderer.invoke(IPC_CHANNELS.revealBackupInFolder, id),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);
