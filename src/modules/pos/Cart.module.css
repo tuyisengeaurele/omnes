@@ -1,0 +1,85 @@
+.cart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.itemInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.itemPrice {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.itemControls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quantityInput {
+  width: 48px;
+  padding: var(--space-1);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.removeButton {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  font-weight: 600;
+}

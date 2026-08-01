@@ -400,6 +400,66 @@ first and falls back to `meta.target` for safety.
 pattern for the deactivate/reactivate toggle) rather than two separate
 screens or a modal.
 
+## POS Sale Flow
+
+`sales.ts`'s `createSale()` is the app's second `Serializable`-isolation
+transaction, after `createFirstAdmin`'s in Authentication — and for the
+same underlying reason. Under Postgres's default `READ COMMITTED`, the
+transaction's own check-then-decrement (re-read a product's
+`stockQuantity`, compare against the cart line, then `UPDATE ... {
+decrement }`) isn't atomic _across_ those two statements even though each
+individual statement is; two concurrent checkouts could both read
+sufficient stock before either commits. `Serializable` makes Postgres
+detect that conflict and abort one transaction with a `P2034` error
+instead — caught and turned into a clear retry message — which is exactly
+what `tests/unit/sales.test.ts`'s race test (two simultaneous checkouts
+against a product with one unit in stock) exists to prove, not just
+assert from reading the transaction body.
+
+`Sale` and `SaleItem` snapshot data that must survive later changes
+elsewhere — `cashierUsername` (mirroring `AuditLog.username`) and each
+line's `productName`/`unitPrice` at the moment of sale — so a later
+product rename, re-price, or user removal never rewrites a historical
+receipt. This snapshotting turned out to matter sooner than expected:
+the e2e checkout test surfaced a real bug where a live session's
+`cashierId` can reference a `User` row that no longer exists (concretely,
+an admin restores a backup taken before this cashier's account existed
+while their session is still live in the running process) — `createSale`
+was crashing with a raw `Sale_cashierId_fkey` violation instead of
+degrading gracefully. It now verifies the referenced user still exists
+_inside_ the same `Serializable` transaction that inserts the `Sale` row
+(not a separate check beforehand — an independent code review caught that
+an outside check leaves a real, if narrow, TOCTOU window where the user
+row could vanish between the check and the insert), falling back to
+`cashierId: null` while still keeping the `cashierUsername` snapshot,
+matching `Sale.cashierId`'s own `onDelete: SetNull` design intent.
+`toErrorMessage()` also maps Prisma's `P2003` (foreign-key violation) to a
+clean message as defense-in-depth, in case any other path ever triggers
+one. The same bug pattern exists in `auth.ts`'s `AuditLog` writes
+(`logout()` confirmed reproducible the same way) — out of scope for this
+sub-project to fix, tracked separately.
+
+Cart-building is pure renderer state (`PosPage.tsx` holds an array of
+`{ product, quantity }`) — nothing is persisted until checkout succeeds,
+so there's no IPC round trip per item added to the cart, only the final
+`sale:create` call. Receipts print via the OS dialog
+(`window.print()`/`webContents.print()`), not a vendor thermal-printer
+SDK — deliberately, since that's real hardware-integration scope with no
+concrete printer requirement to build against yet.
+
+**Test-infrastructure gotcha, worth knowing before adding a test file
+that creates real `User` rows again:** every Prisma-backed test file
+hits the same real local Postgres database, not an isolated per-file
+schema — that's the project's deliberate "test real behavior" model.
+Vitest's default file-level parallelism assumes test files don't share
+mutable state, which silently doesn't hold here: `auth.test.ts`'s
+`prisma.user.deleteMany()` (unscoped, in its own `beforeEach`) can wipe a
+`User` row another file's test just created, mid-run. This was latent
+since Authentication shipped and never manifested until `sales.test.ts`
+became the second file to create a real named user — `vitest.config.ts`
+now sets `fileParallelism: false` so test files run sequentially against
+the shared database, matching how the suite actually needs to behave.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -450,9 +510,13 @@ utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session log
 against the real local database, `license.ts`'s signature verification against
 throwaway test keypairs, `backup.ts`'s binary discovery, create/verify/restore
 round trip, and due-date scheduling math, `notification-rules.ts`'s license-expiry
-date math, and `products.ts`'s CRUD/validation/duplicate-SKU logic against the real
-local database (all forced to Vitest's `node` environment via a `// @vitest-environment
-node` comment, since they're Node/Prisma/crypto/child-process logic, not DOM logic).
+date math, `products.ts`'s CRUD/validation/duplicate-SKU logic, and `sales.ts`'s
+transactional checkout — including a real two-concurrent-checkouts race test — against
+the real local database (all forced to Vitest's `node` environment via a
+`// @vitest-environment node` comment, since they're Node/Prisma/crypto/child-process
+logic, not DOM logic). Every Prisma-backed test file runs sequentially, not in
+parallel (`vitest.config.ts`'s `fileParallelism: false`) — see the POS Sale Flow
+section above for why.
 The auth and e2e test suites delete all `User` rows as part of their own setup and
 teardown to get a known-empty starting state — there's no separate local test
 database yet, so running `pnpm test` or `pnpm test:e2e` locally is destructive to

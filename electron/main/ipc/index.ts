@@ -4,12 +4,15 @@ import {
   IPC_CHANNELS,
   type BackupRecord,
   type BackupResult,
+  type CreateSaleInput,
   type DatabaseHealthResult,
   type LicenseInfo,
   type NotificationRecord,
   type Product,
   type ProductInput,
   type ProductResult,
+  type Sale,
+  type SaleResult,
   type Session,
 } from '@shared/ipc';
 import {
@@ -43,6 +46,7 @@ import {
   setProductActive,
   updateProduct,
 } from '../services/core/products';
+import { createSale, getSale, listSales } from '../services/core/sales';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -140,4 +144,12 @@ export function registerIpcHandlers(): void {
     (_event, id: string, isActive: boolean): Promise<ProductResult> =>
       setProductActive(id, isActive),
   );
+
+  ipcMain.handle(IPC_CHANNELS.createSale, (_event, input: CreateSaleInput): Promise<SaleResult> =>
+    createSale(input),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.listSales, (): Promise<Sale[]> => listSales());
+
+  ipcMain.handle(IPC_CHANNELS.getSale, (_event, id: string): Promise<Sale | null> => getSale(id));
 }
