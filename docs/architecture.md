@@ -351,6 +351,55 @@ produce (license expiry, backup outcome) — every later module (low stock,
 sync failures, etc.) calls `notify()` from `notifications.ts` the same way
 `backup-manager.ts` does, rather than building its own notification path.
 
+## Inventory Foundation
+
+`Product` (`prisma/schema.prisma`) is the first data model any business
+module needs — POS sells against it, Reports will aggregate against it,
+CRM eventually ties purchases to it. It's deliberately scoped as
+Inventory's foundational slice, not folded into the POS sub-project that
+consumes it, the same relationship Database Foundation had to
+Authentication. Full Inventory — purchase orders, suppliers, a
+stock-adjustment audit trail, low-stock alerts, multi-warehouse (an
+explicit license add-on) — stays out of scope until something actually
+needs it; this sub-project only builds what POS needs to have something to
+sell.
+
+`price` and `stockQuantity` are plain `Int` (RWF has no commonly-used
+subunit, unlike currencies with cents), and `isActive` is a soft-delete
+flag mirroring `User.isActive` for the same reason: a future `Sale` line
+item will reference `productId`, which can't tolerate a hard-deleted row.
+`category` is a plain string rather than a separate lookup table —
+unjustified complexity until a second consumer actually needs to
+query/filter by it.
+
+`products.ts` returns a `ProductResult` (`{ success, message, product }`)
+directly from its mutating functions rather than throwing, matching
+`backup-manager.ts`'s convention rather than `auth.ts`'s throw-based one —
+this keeps the IPC handlers pure passthroughs with no try/catch of their
+own. It imports nothing from `electron`, only the generated Prisma client
+and `database.ts` (itself Electron-free), so it's directly unit-testable
+against the real local database the same way `auth.ts` is
+(`tests/unit/products.test.ts`) — there's no non-trivial algorithm here
+worth a separate pure-logic file the way `backup.ts`'s date math was.
+
+**Gotcha worth knowing before catching a Prisma unique-constraint error
+again:** with `@prisma/adapter-pg` (the driver adapter this project uses
+instead of Prisma's native query engine — see Database Foundation above),
+a `P2002` unique-constraint violation's conflicting column names do
+**not** live at the classic `error.meta.target` path. They're nested under
+`error.meta.driverAdapterError.cause.constraint.fields` instead — this was
+discovered by actually logging the caught error's shape during this
+sub-project's own test run, not assumed, after a first attempt at
+`toErrorMessage()` silently fell through to Prisma's generic "Unique
+constraint failed" text instead of the intended "SKU already in use".
+`products.ts`'s `getConflictingFields()` checks the driver-adapter path
+first and falls back to `meta.target` for safety.
+
+`ProductsPage.tsx` toggles between a table view and `ProductForm.tsx`
+(shared between add and edit, matching `BackupPanel`'s per-row-action
+pattern for the deactivate/reactivate toggle) rather than two separate
+screens or a modal.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -400,8 +449,9 @@ Unit tests (Vitest + Testing Library) cover pieces with real logic: the `cn` cla
 utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session logic
 against the real local database, `license.ts`'s signature verification against
 throwaway test keypairs, `backup.ts`'s binary discovery, create/verify/restore
-round trip, and due-date scheduling math, and `notification-rules.ts`'s license-expiry
-date math (all forced to Vitest's `node` environment via a `// @vitest-environment
+round trip, and due-date scheduling math, `notification-rules.ts`'s license-expiry
+date math, and `products.ts`'s CRUD/validation/duplicate-SKU logic against the real
+local database (all forced to Vitest's `node` environment via a `// @vitest-environment
 node` comment, since they're Node/Prisma/crypto/child-process logic, not DOM logic).
 The auth and e2e test suites delete all `User` rows as part of their own setup and
 teardown to get a known-empty starting state — there's no separate local test
