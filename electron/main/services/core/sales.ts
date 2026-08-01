@@ -53,6 +53,16 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
 
   try {
     const session = getSession();
+    // A live session's userId can outlive its own User row — most
+    // plausibly, an admin restores a backup taken before this cashier's
+    // account existed while the cashier is mid-shift. Verifying first
+    // means a stale reference degrades to an unattributed sale (like
+    // AuditLog's own SetNull design) rather than crashing the checkout
+    // with a raw foreign-key violation.
+    const cashierId = session
+      ? ((await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true } }))
+          ?.id ?? null)
+      : null;
 
     const row = await prisma.$transaction(
       async (tx) => {
@@ -98,7 +108,7 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
 
         return tx.sale.create({
           data: {
-            cashierId: session?.userId ?? null,
+            cashierId,
             cashierUsername: session?.username ?? null,
             paymentMethod: input.paymentMethod,
             amountTendered: input.paymentMethod === 'CASH' ? input.amountTendered : null,

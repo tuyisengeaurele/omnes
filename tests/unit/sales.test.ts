@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { randomUUID } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { afterAll, describe, expect, it } from 'vitest';
+import { login } from '../../electron/main/services/core/auth';
 import { createProduct, listProducts } from '../../electron/main/services/core/products';
 import { createSale, getSale, listSales } from '../../electron/main/services/core/sales';
 import { prisma } from '../../electron/main/services/core/database';
@@ -120,6 +122,38 @@ describe('sales', () => {
     const products = await listProducts(true);
     expect(products.find((product) => product.id === productId)?.stockQuantity).toBe(0);
   }, 15_000);
+
+  it('degrades to an unattributed sale when the session user no longer exists', async () => {
+    // Simulates a restore reverting the database to a point before this
+    // cashier's account existed while their session is still live — the
+    // real failure this e2e-discovered bug reproduced.
+    const username = `test-cashier-${randomUUID()}`;
+    const passwordHash = await bcrypt.hash('test-password-123', 12);
+    const user = await prisma.user.create({
+      data: { username, passwordHash, role: 'CASHIER' },
+    });
+
+    await login(username, 'test-password-123');
+    await prisma.user.delete({ where: { id: user.id } });
+
+    const productId = await makeTestProduct(5, 500);
+    const result = await createSale({
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: 'CASH',
+      amountTendered: 500,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sale?.cashierUsername).toBe(username);
+    if (result.sale) createdSaleIds.push(result.sale.id);
+
+    // Deliberately not calling logout() here: auth.ts's logout() has the
+    // same class of bug this test exists to prove sales.ts doesn't have
+    // (it writes an AuditLog row trusting currentSession.userId without
+    // verifying the row still exists) — out of scope for this file, flagged
+    // separately. Leaving the session as-is for the rest of this suite is
+    // harmless; no other test here depends on getSession() being cleared.
+  });
 
   it('lists and retrieves a sale', async () => {
     const productId = await makeTestProduct(5, 250);
