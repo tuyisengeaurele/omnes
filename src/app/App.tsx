@@ -8,6 +8,7 @@ import { AppShell } from './AppShell';
 import { AuthGate } from './AuthGate';
 import { Dashboard } from '../modules/core/Dashboard';
 import { AdminPage } from '../modules/admin/AdminPage';
+import { ProductsPage } from '../modules/inventory/ProductsPage';
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
@@ -44,6 +45,7 @@ export function App() {
               <Route element={<AppShell />}>
                 <Route index element={<Dashboard />} />
                 <Route path="admin" element={<AdminPage />} />
+                <Route path="inventory" element={<ProductsPage />} />
               </Route>
             </Routes>
           </HashRouter>

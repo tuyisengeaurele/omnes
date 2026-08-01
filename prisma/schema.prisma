@@ -43,3 +43,16 @@ model AuditLog {
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
+
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  sku           String   @unique
+  barcode       String?  @unique
+  category      String
+  price         Int
+  stockQuantity Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

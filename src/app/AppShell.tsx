@@ -9,7 +9,7 @@ import styles from './AppShell.module.css';
 const MODULE_NAV = [
   { key: 'modules.core', path: '/', enabled: true },
   { key: 'modules.pos', path: '/pos', enabled: false },
-  { key: 'modules.inventory', path: '/inventory', enabled: false },
+  { key: 'modules.inventory', path: '/inventory', enabled: true },
   { key: 'modules.crm', path: '/crm', enabled: false },
   { key: 'modules.reports', path: '/reports', enabled: false },
   { key: 'modules.admin', path: '/admin', enabled: true },

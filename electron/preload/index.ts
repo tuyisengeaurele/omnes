@@ -34,6 +34,11 @@ const api: AppApi = {
     ipcRenderer.on(IPC_CHANNELS.notificationCreated, listener);
     return () => ipcRenderer.removeListener(IPC_CHANNELS.notificationCreated, listener);
   },
+  listProducts: (includeInactive) => ipcRenderer.invoke(IPC_CHANNELS.listProducts, includeInactive),
+  createProduct: (input) => ipcRenderer.invoke(IPC_CHANNELS.createProduct, input),
+  updateProduct: (id, input) => ipcRenderer.invoke(IPC_CHANNELS.updateProduct, id, input),
+  setProductActive: (id, isActive) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setProductActive, id, isActive),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);

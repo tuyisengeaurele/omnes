@@ -75,5 +75,18 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await confirmButton.click();
   await expect(window.getByText('Restore completed')).toBeVisible({ timeout: 30_000 });
 
+  await window.getByRole('link', { name: 'Inventory' }).click();
+  await window.getByRole('button', { name: 'Add product' }).click();
+  await window.getByLabel('Name').fill('E2E Test Widget');
+  await window.getByLabel('SKU').fill(`E2E-${Date.now()}`);
+  await window.getByLabel('Category').fill('Test');
+  await window.getByLabel('Price (RWF)').fill('1500');
+  await window.getByLabel('Stock quantity').fill('5');
+  await window.getByRole('button', { name: 'Add product' }).click();
+  // .first(): the product NAME repeats across local re-runs even though
+  // the per-run SKU is unique, same reasoning as the backup/notification
+  // assertions above.
+  await expect(window.getByText('E2E Test Widget').first()).toBeVisible({ timeout: 10_000 });
+
   await app.close();
 });
