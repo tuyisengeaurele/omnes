@@ -427,11 +427,17 @@ an admin restores a backup taken before this cashier's account existed
 while their session is still live in the running process) — `createSale`
 was crashing with a raw `Sale_cashierId_fkey` violation instead of
 degrading gracefully. It now verifies the referenced user still exists
-before using the id, falling back to `cashierId: null` while still
-keeping the `cashierUsername` snapshot, matching `Sale.cashierId`'s own
-`onDelete: SetNull` design intent. The same bug pattern exists in
-`auth.ts`'s `AuditLog` writes (`logout()` confirmed reproducible the same
-way) — out of scope for this sub-project to fix, tracked separately.
+_inside_ the same `Serializable` transaction that inserts the `Sale` row
+(not a separate check beforehand — an independent code review caught that
+an outside check leaves a real, if narrow, TOCTOU window where the user
+row could vanish between the check and the insert), falling back to
+`cashierId: null` while still keeping the `cashierUsername` snapshot,
+matching `Sale.cashierId`'s own `onDelete: SetNull` design intent.
+`toErrorMessage()` also maps Prisma's `P2003` (foreign-key violation) to a
+clean message as defense-in-depth, in case any other path ever triggers
+one. The same bug pattern exists in `auth.ts`'s `AuditLog` writes
+(`logout()` confirmed reproducible the same way) — out of scope for this
+sub-project to fix, tracked separately.
 
 Cart-building is pure renderer state (`PosPage.tsx` holds an array of
 `{ product, quantity }`) — nothing is persisted until checkout succeeds,

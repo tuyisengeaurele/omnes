@@ -40,8 +40,17 @@ function toSale(row: SaleRow): Sale {
 }
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
-    return 'Checkout conflicted with another sale in progress. Please try again.';
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2034') {
+      return 'Checkout conflicted with another sale in progress. Please try again.';
+    }
+    // Defense-in-depth: the cashier-existence check inside the transaction
+    // below is what's meant to prevent this, but a raw FK violation should
+    // never leak to the cashier as a Prisma internals string if some other
+    // path ever triggers one.
+    if (error.code === 'P2003') {
+      return 'Could not complete the sale. Please try again.';
+    }
   }
   return error instanceof Error ? error.message : String(error);
 }
@@ -53,19 +62,22 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
 
   try {
     const session = getSession();
-    // A live session's userId can outlive its own User row — most
-    // plausibly, an admin restores a backup taken before this cashier's
-    // account existed while the cashier is mid-shift. Verifying first
-    // means a stale reference degrades to an unattributed sale (like
-    // AuditLog's own SetNull design) rather than crashing the checkout
-    // with a raw foreign-key violation.
-    const cashierId = session
-      ? ((await prisma.user.findUnique({ where: { id: session.userId }, select: { id: true } }))
-          ?.id ?? null)
-      : null;
 
     const row = await prisma.$transaction(
       async (tx) => {
+        // A live session's userId can outlive its own User row — most
+        // plausibly, an admin restores a backup taken before this cashier's
+        // account existed while the cashier is mid-shift. Checking inside
+        // this same transaction (not before it starts) means the check and
+        // the insert that relies on it are atomic together — a stale
+        // reference degrades to an unattributed sale (like AuditLog's own
+        // SetNull design) rather than a race window where the row could
+        // disappear between an outside check and the insert.
+        const cashierId = session
+          ? ((await tx.user.findUnique({ where: { id: session.userId }, select: { id: true } }))
+              ?.id ?? null)
+          : null;
+
         let total = 0;
         const lineData: {
           productId: string;
