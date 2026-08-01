@@ -50,20 +50,24 @@ test('bootstraps the first admin account and reaches the shell', async () => {
 
   await window.getByRole('link', { name: 'Administration' }).click();
   await window.getByRole('button', { name: 'Back up now' }).click();
-  await expect(window.getByText(/^omnes-backup-/)).toBeVisible({ timeout: 30_000 });
+  // .first(): a single CI run always produces exactly one match, but a
+  // local re-run of this suite reuses the same userData directory (nothing
+  // clears backup history between runs, only Users), so this stays robust
+  // without needing a manual reset before every local run.
+  await expect(window.getByText(/^omnes-backup-/).first()).toBeVisible({ timeout: 30_000 });
 
   // Proves the full notification path end-to-end: performManualBackup()'s
   // success branch really calls notify(), the IPC push really reaches the
   // renderer live (no reload happened), and the bell reflects it.
   await expect(window.getByLabel('Notifications')).toBeVisible();
   await window.getByLabel('Notifications').click();
-  await expect(window.getByText('Backup created')).toBeVisible();
+  await expect(window.getByText('Backup created').first()).toBeVisible();
   await window.getByLabel('Notifications').click(); // close the panel again
 
   // Restore requires typing the literal word RESTORE before it's enabled —
   // proves both the confirmation gate and that an ADMIN session (the only
   // role createFirstAdmin ever creates) can actually complete a restore.
-  await window.getByRole('button', { name: 'Restore', exact: true }).click();
+  await window.getByRole('button', { name: 'Restore', exact: true }).first().click();
   const confirmButton = window.getByRole('button', { name: 'Confirm restore' });
   await expect(confirmButton).toBeDisabled();
   await window.getByPlaceholder('RESTORE').fill('RESTORE');
