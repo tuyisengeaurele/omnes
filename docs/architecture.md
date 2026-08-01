@@ -202,6 +202,72 @@ Online activation, a license-management UI, and hardware/machine locking are all
 explicitly out of scope — see the design spec's "Out of scope" section for why each
 one is deferred rather than silently missing.
 
+## Backup
+
+`electron/main/services/core/backup.ts` spawns the real `pg_dump`/`pg_restore`
+binaries as child processes rather than reimplementing dump/restore logic —
+it tries `PATH` first (`pg_dump --version`), then falls back to a short list
+of Windows install directories (`C:\Program Files\PostgreSQL\{17,16,15}\bin`)
+if that fails, caching whichever path resolved for the process lifetime.
+Connection info is parsed from `DATABASE_URL` into discrete `pg_dump`/
+`pg_restore` arguments (`-h`/`-p`/`-U`/`-d`) with the password passed via a
+`PGPASSWORD` env var, rather than relying on env-var inheritance across
+`child_process.spawn` working consistently. This file imports nothing from
+`electron`, only Node built-ins and `pg` — the same "pure, unit-testable"
+pattern as `auth.ts`/`license.ts` — and its tests (`tests/unit/backup.test.ts`)
+run the real binaries against the real local database: a real `pg_dump -Fc`
+archive is created, then genuinely verified by restoring it into a throwaway
+`omnes_backup_verify` database, not just checking the file parses.
+
+`verifyBackup()` uses a raw `pg` `Client` (not the `@prisma/adapter-pg`
+wrapper `database.ts` uses) connected to the `postgres` maintenance database
+to `CREATE DATABASE`/`DROP DATABASE ... WITH (FORCE)` the scratch database —
+this has to happen outside Prisma's own connection and schema entirely. The
+scratch database is dropped both before creating it (in case a previous
+crashed run left one behind) and in a `finally` after restoring into it, so
+a failed verification never leaves `omnes_backup_verify` orphaned to confuse
+the next call.
+
+`restoreBackup()` runs `pg_restore --clean --if-exists` against the real
+database. Before calling it, `backup-manager.ts`'s `performRestore()` calls
+`disconnectDatabase()` (the same helper `main/index.ts`'s `before-quit`
+hook already uses) — Postgres refuses to drop/replace objects that have an
+active session holding them, and Prisma's connection pool counts as one. No
+explicit reconnect is needed afterward; Prisma's client lazily opens a new
+connection the next time any query runs. This was verified directly, not
+just assumed: a throwaway test inserted a marker `AuditLog` row after
+taking a backup, disconnected, called `restoreBackup()`, then queried again
+through the same still-in-scope `prisma` client — the marker was gone and
+the query succeeded without any explicit reconnect step.
+
+Backup history (`{ id, filename, createdAt, sizeBytes, verified,
+verifiedAt }`) lives in its own `electron-store` file (`backup-store.ts`,
+`name: 'backups'` — separate from `preferences.ts`'s store), deliberately
+outside Postgres: if a restore ever replaces the database's contents, the
+record of what backups exist and when they were last verified must survive
+that, not be part of what gets restored over.
+
+`backup-manager.ts` is the Electron-aware orchestration layer that ties
+`backup.ts` and `backup-store.ts` together — it resolves the backups
+directory (`{userData}/backups`), converts thrown errors into the
+`BackupResult` shape crossing IPC (`{ success, message, record }`, never a
+raw error object), and is what every IPC handler and the scheduler call
+into rather than either lower-level file directly.
+
+`backup-scheduler.ts` follows `idle.ts`'s `setInterval` pattern: it checks
+whether a backup is due (`isBackupDue()` in `backup.ts` — pure date math,
+"is the newest backup missing or ≥24 hours old", tested in isolation)
+immediately on startup and then every 4 hours while the app keeps running,
+so a shop that doesn't leave the app open continuously still gets caught up
+promptly rather than waiting for a fixed wall-clock interval to elapse.
+
+The Administration sidebar entry (a disabled placeholder since Foundation)
+is now a real route (`/admin` → `AdminPage` → `BackupPanel`), the first
+sub-project to give it content. Restoring requires typing the literal word
+`RESTORE` into a confirmation field before the button enables — deliberately
+more friction than anything else in the app, since it's the only action that
+silently replaces a shop's live data.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -249,10 +315,11 @@ configured in both `electron.vite.config.ts` and `vitest.config.ts`.
 
 Unit tests (Vitest + Testing Library) cover pieces with real logic: the `cn` class-name
 utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session logic
-against the real local database, and `license.ts`'s signature verification against
-throwaway test keypairs (all three of the latter forced to Vitest's `node` environment
-via a `// @vitest-environment node` comment, since they're Node/Prisma/crypto logic,
-not DOM logic).
+against the real local database, `license.ts`'s signature verification against
+throwaway test keypairs, and `backup.ts`'s binary discovery, create/verify/restore
+round trip, and due-date scheduling math (all forced to Vitest's `node` environment
+via a `// @vitest-environment node` comment, since they're Node/Prisma/crypto/
+child-process logic, not DOM logic).
 The auth and e2e test suites delete all `User` rows as part of their own setup and
 teardown to get a known-empty starting state — there's no separate local test
 database yet, so running `pnpm test` or `pnpm test:e2e` locally is destructive to
