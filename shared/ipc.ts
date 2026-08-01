@@ -25,6 +25,9 @@ export const IPC_CHANNELS = {
   createProduct: 'product:create',
   updateProduct: 'product:update',
   setProductActive: 'product:set-active',
+  createSale: 'sale:create',
+  listSales: 'sale:list',
+  getSale: 'sale:get',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -119,6 +122,44 @@ export interface ProductResult {
   product: Product | null;
 }
 
+export type PaymentMethod = 'CASH' | 'MOBILE_MONEY';
+
+export interface SaleItem {
+  id: string;
+  productId: string | null;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+}
+
+export interface Sale {
+  id: string;
+  cashierUsername: string | null;
+  paymentMethod: PaymentMethod;
+  amountTendered: number | null;
+  changeGiven: number | null;
+  total: number;
+  createdAt: string;
+  items: SaleItem[];
+}
+
+export interface SaleLineInput {
+  productId: string;
+  quantity: number;
+}
+
+export interface CreateSaleInput {
+  items: SaleLineInput[];
+  paymentMethod: PaymentMethod;
+  amountTendered: number | null;
+}
+
+export interface SaleResult {
+  success: boolean;
+  message: string;
+  sale: Sale | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -146,4 +187,7 @@ export interface AppApi {
   createProduct: (input: ProductInput) => Promise<ProductResult>;
   updateProduct: (id: string, input: Partial<ProductInput>) => Promise<ProductResult>;
   setProductActive: (id: string, isActive: boolean) => Promise<ProductResult>;
+  createSale: (input: CreateSaleInput) => Promise<SaleResult>;
+  listSales: () => Promise<Sale[]>;
+  getSale: (id: string) => Promise<Sale | null>;
 }
