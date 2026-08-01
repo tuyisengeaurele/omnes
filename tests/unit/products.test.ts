@@ -61,6 +61,30 @@ describe('products', () => {
     expect(result.message).toBe('SKU already in use');
   });
 
+  it('rejects a duplicate barcode', async () => {
+    const barcode = uniqueSku();
+    await createProduct({
+      name: 'First',
+      sku: uniqueSku(),
+      barcode,
+      category: 'Widgets',
+      price: 100,
+      stockQuantity: 1,
+    });
+
+    const result = await createProduct({
+      name: 'Second',
+      sku: uniqueSku(),
+      barcode,
+      category: 'Widgets',
+      price: 200,
+      stockQuantity: 2,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.message).toBe('Barcode already in use');
+  });
+
   it('rejects a negative price', async () => {
     const result = await createProduct({
       name: 'Bad Widget',
