@@ -48,5 +48,9 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await expect(window.getByText('License: DEVELOPMENT')).toBeVisible();
   await expect(window.getByText('e2e-admin')).toBeVisible();
 
+  await window.getByRole('link', { name: 'Administration' }).click();
+  await window.getByRole('button', { name: 'Back up now' }).click();
+  await expect(window.getByText(/^omnes-backup-/)).toBeVisible({ timeout: 30_000 });
+
   await app.close();
 });
