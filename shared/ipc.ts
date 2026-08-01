@@ -10,6 +10,11 @@ export const IPC_CHANNELS = {
   getLastUsername: 'auth:get-last-username',
   sessionLocked: 'session:locked',
   getLicenseInfo: 'license:get-info',
+  createBackup: 'backup:create',
+  listBackups: 'backup:list',
+  verifyBackup: 'backup:verify',
+  restoreBackup: 'backup:restore',
+  revealBackupInFolder: 'backup:reveal-in-folder',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -50,6 +55,21 @@ export interface LicenseInfo {
   expiresAt: string | null;
 }
 
+export interface BackupRecord {
+  id: string;
+  filename: string;
+  createdAt: string;
+  sizeBytes: number;
+  verified: boolean;
+  verifiedAt: string | null;
+}
+
+export interface BackupResult {
+  success: boolean;
+  message: string;
+  record: BackupRecord | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -62,4 +82,9 @@ export interface AppApi {
   getLastUsername: () => Promise<string | null>;
   onSessionLocked: (callback: () => void) => () => void;
   getLicenseInfo: () => Promise<LicenseInfo>;
+  createBackup: () => Promise<BackupResult>;
+  listBackups: () => Promise<BackupRecord[]>;
+  verifyBackup: (id: string) => Promise<BackupResult>;
+  restoreBackup: (id: string) => Promise<BackupResult>;
+  revealBackupInFolder: (id: string) => Promise<void>;
 }
