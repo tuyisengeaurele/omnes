@@ -75,18 +75,40 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await confirmButton.click();
   await expect(window.getByText('Restore completed')).toBeVisible({ timeout: 30_000 });
 
+  // The SKU (not the product name) is what's actually unique per run —
+  // "E2E Test Widget" repeats across every local re-run of this suite, so
+  // every locator below that needs to identify *this run's* product uses
+  // the SKU, never the name alone (a `.first()` on the name would pick
+  // whichever accumulated row Postgres happens to return first for a tied
+  // `ORDER BY name`, not necessarily this run's).
+  const sku = `E2E-${Date.now()}`;
+
   await window.getByRole('link', { name: 'Inventory' }).click();
   await window.getByRole('button', { name: 'Add product' }).click();
   await window.getByLabel('Name').fill('E2E Test Widget');
-  await window.getByLabel('SKU').fill(`E2E-${Date.now()}`);
+  await window.getByLabel('SKU').fill(sku);
   await window.getByLabel('Category').fill('Test');
   await window.getByLabel('Price (RWF)').fill('1500');
   await window.getByLabel('Stock quantity').fill('5');
   await window.getByRole('button', { name: 'Add product' }).click();
-  // .first(): the product NAME repeats across local re-runs even though
-  // the per-run SKU is unique, same reasoning as the backup/notification
-  // assertions above.
-  await expect(window.getByText('E2E Test Widget').first()).toBeVisible({ timeout: 10_000 });
+  await expect(window.getByText(sku)).toBeVisible({ timeout: 10_000 });
+
+  await window.getByRole('link', { name: 'Point of Sale' }).click();
+  // Searching by the unique SKU (ProductSearch matches on name/SKU/barcode)
+  // returns exactly this run's product, no ambiguity.
+  await window.getByPlaceholder('Search products by name, SKU, or barcode').fill(sku);
+  await window.getByText(sku).click();
+  await window.getByRole('button', { name: 'Cash' }).click();
+  await window.getByLabel('Amount tendered').fill('2000');
+  await window.getByRole('button', { name: 'Checkout' }).click();
+  await expect(window.getByRole('button', { name: 'Print' })).toBeVisible({ timeout: 10_000 });
+  await expect(window.getByText(/E2E Test Widget/)).toBeVisible();
+  await window.getByRole('button', { name: 'Close' }).click();
+
+  await window.getByRole('link', { name: 'Inventory' }).click();
+  // Stock was 5, minus the 1 just sold in POS — identifying the row by the
+  // unique SKU (not the shared name) so this checks this run's actual row.
+  await expect(window.locator('tr', { hasText: sku })).toContainText('4');
 
   await app.close();
 });
