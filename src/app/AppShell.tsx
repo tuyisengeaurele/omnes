@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUiStore } from '../lib/store/uiStore';
 import { useAuthStore } from '../lib/store/authStore';
 import styles from './AppShell.module.css';
 
 const MODULE_NAV = [
-  { key: 'modules.core', enabled: true },
-  { key: 'modules.pos', enabled: false },
-  { key: 'modules.inventory', enabled: false },
-  { key: 'modules.crm', enabled: false },
-  { key: 'modules.reports', enabled: false },
-  { key: 'modules.admin', enabled: false },
+  { key: 'modules.core', path: '/', enabled: true },
+  { key: 'modules.pos', path: '/pos', enabled: false },
+  { key: 'modules.inventory', path: '/inventory', enabled: false },
+  { key: 'modules.crm', path: '/crm', enabled: false },
+  { key: 'modules.reports', path: '/reports', enabled: false },
+  { key: 'modules.admin', path: '/admin', enabled: true },
 ] as const;
 
 export function AppShell() {
@@ -112,9 +112,15 @@ export function AppShell() {
           <ul>
             {MODULE_NAV.map((item) => (
               <li key={item.key}>
-                <span className={styles.navItem} data-disabled={!item.enabled}>
-                  {t(item.key)}
-                </span>
+                {item.enabled ? (
+                  <Link to={item.path} className={styles.navItem}>
+                    {t(item.key)}
+                  </Link>
+                ) : (
+                  <span className={styles.navItem} data-disabled="true">
+                    {t(item.key)}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
