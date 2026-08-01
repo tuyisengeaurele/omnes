@@ -32,6 +32,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   auditLogs AuditLog[]
+  sales     Sale[]
 }
 
 model AuditLog {
@@ -55,4 +56,37 @@ model Product {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  saleItems SaleItem[]
+}
+
+enum PaymentMethod {
+  CASH
+  MOBILE_MONEY
+}
+
+model Sale {
+  id              String        @id @default(uuid())
+  cashierId       String?
+  cashierUsername String?
+  paymentMethod   PaymentMethod
+  amountTendered  Int?
+  changeGiven     Int?
+  total           Int
+  createdAt       DateTime      @default(now())
+
+  cashier User?      @relation(fields: [cashierId], references: [id], onDelete: SetNull)
+  items   SaleItem[]
+}
+
+model SaleItem {
+  id          String @id @default(uuid())
+  saleId      String
+  productId   String?
+  productName String
+  unitPrice   Int
+  quantity    Int
+
+  sale    Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 }
