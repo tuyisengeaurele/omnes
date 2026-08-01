@@ -1,9 +1,14 @@
 // @vitest-environment node
-import { describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterAll, describe, expect, it } from 'vitest';
 import {
+  createBackup,
   isBackupDue,
   locatePgDump,
   locatePgRestore,
+  verifyBackup,
 } from '../../electron/main/services/core/backup';
 
 describe('isBackupDue', () => {
@@ -34,4 +39,34 @@ describe('locatePgDump and locatePgRestore', () => {
     expect(pgDumpPath).toBeTruthy();
     expect(pgRestorePath).toBeTruthy();
   }, 15_000);
+});
+
+describe('createBackup and verifyBackup', () => {
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'omnes-backup-test-'));
+
+  afterAll(() => {
+    rmSync(tempDir, { recursive: true, force: true });
+  });
+
+  it('creates a real pg_dump archive and verifies it restores cleanly', async () => {
+    const { filePath, sizeBytes } = await createBackup(tempDir);
+
+    expect(existsSync(filePath)).toBe(true);
+    expect(sizeBytes).toBeGreaterThan(0);
+
+    const isValid = await verifyBackup(filePath);
+    expect(isValid).toBe(true);
+  }, 30_000);
+
+  it('reports a truncated file as invalid rather than throwing', async () => {
+    const { filePath, sizeBytes } = await createBackup(tempDir);
+    const fs = await import('node:fs');
+    // Custom-format archives tolerate trailing garbage, so truncation (which
+    // breaks the internal TOC/data structure) is what actually makes
+    // pg_restore fail, unlike appending bytes after a valid archive.
+    fs.truncateSync(filePath, Math.floor(sizeBytes / 2));
+
+    const isValid = await verifyBackup(filePath);
+    expect(isValid).toBe(false);
+  }, 30_000);
 });
