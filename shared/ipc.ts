@@ -15,6 +15,11 @@ export const IPC_CHANNELS = {
   verifyBackup: 'backup:verify',
   restoreBackup: 'backup:restore',
   revealBackupInFolder: 'backup:reveal-in-folder',
+  listNotifications: 'notification:list',
+  markNotificationRead: 'notification:mark-read',
+  markAllNotificationsRead: 'notification:mark-all-read',
+  clearNotification: 'notification:clear',
+  notificationCreated: 'notification:created',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -70,6 +75,17 @@ export interface BackupResult {
   record: BackupRecord | null;
 }
 
+export type NotificationSeverity = 'info' | 'warning' | 'error';
+
+export interface NotificationRecord {
+  id: string;
+  severity: NotificationSeverity;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -87,4 +103,9 @@ export interface AppApi {
   verifyBackup: (id: string) => Promise<BackupResult>;
   restoreBackup: (id: string) => Promise<BackupResult>;
   revealBackupInFolder: (id: string) => Promise<void>;
+  listNotifications: () => Promise<NotificationRecord[]>;
+  markNotificationRead: (id: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+  clearNotification: (id: string) => Promise<void>;
+  onNotificationCreated: (callback: (notification: NotificationRecord) => void) => () => void;
 }
