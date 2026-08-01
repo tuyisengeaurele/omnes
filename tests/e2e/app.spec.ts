@@ -52,6 +52,14 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await window.getByRole('button', { name: 'Back up now' }).click();
   await expect(window.getByText(/^omnes-backup-/)).toBeVisible({ timeout: 30_000 });
 
+  // Proves the full notification path end-to-end: performManualBackup()'s
+  // success branch really calls notify(), the IPC push really reaches the
+  // renderer live (no reload happened), and the bell reflects it.
+  await expect(window.getByLabel('Notifications')).toBeVisible();
+  await window.getByLabel('Notifications').click();
+  await expect(window.getByText('Backup created')).toBeVisible();
+  await window.getByLabel('Notifications').click(); // close the panel again
+
   // Restore requires typing the literal word RESTORE before it's enabled —
   // proves both the confirmation gate and that an ADMIN session (the only
   // role createFirstAdmin ever creates) can actually complete a restore.
