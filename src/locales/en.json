@@ -31,7 +31,7 @@
   "notifications.bellLabel": "Notifications",
   "notifications.title": "Notifications",
   "notifications.markAllRead": "Mark all read",
-  "notifications.close": "Close",
+  "notifications.clearAll": "Clear all",
   "notifications.empty": "No notifications.",
   "notifications.clear": "Dismiss",
   "modules.core": "Core",

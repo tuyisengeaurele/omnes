@@ -53,3 +53,7 @@ export function clearNotification(id: string): void {
   const records = store.get('records').filter((record) => record.id !== id);
   store.set('records', records);
 }
+
+export function clearAllNotifications(): void {
+  store.set('records', []);
+}

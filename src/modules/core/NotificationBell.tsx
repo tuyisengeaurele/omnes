@@ -54,6 +54,11 @@ export function NotificationBell() {
     setNotifications((current) => current.filter((notification) => notification.id !== id));
   };
 
+  const handleClearAll = () => {
+    void window.omnes?.clearAllNotifications();
+    setNotifications([]);
+  };
+
   return (
     <div className={styles.wrapper}>
       <button
@@ -71,6 +76,7 @@ export function NotificationBell() {
           onMarkRead={handleMarkRead}
           onMarkAllRead={handleMarkAllRead}
           onClear={handleClear}
+          onClearAll={handleClearAll}
         />
       )}
     </div>

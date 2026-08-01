@@ -7,6 +7,7 @@ interface NotificationPanelProps {
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onClear: (id: string) => void;
+  onClearAll: () => void;
 }
 
 export function NotificationPanel({
@@ -14,6 +15,7 @@ export function NotificationPanel({
   onMarkRead,
   onMarkAllRead,
   onClear,
+  onClearAll,
 }: NotificationPanelProps) {
   const { t } = useTranslation();
 
@@ -24,6 +26,9 @@ export function NotificationPanel({
         <div className={styles.headerActions}>
           <button type="button" onClick={onMarkAllRead}>
             {t('notifications.markAllRead')}
+          </button>
+          <button type="button" onClick={onClearAll}>
+            {t('notifications.clearAll')}
           </button>
         </div>
       </div>

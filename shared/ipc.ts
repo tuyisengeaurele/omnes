@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   markNotificationRead: 'notification:mark-read',
   markAllNotificationsRead: 'notification:mark-all-read',
   clearNotification: 'notification:clear',
+  clearAllNotifications: 'notification:clear-all',
   notificationCreated: 'notification:created',
 } as const;
 
@@ -107,5 +108,6 @@ export interface AppApi {
   markNotificationRead: (id: string) => Promise<void>;
   markAllNotificationsRead: () => Promise<void>;
   clearNotification: (id: string) => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
   onNotificationCreated: (callback: (notification: NotificationRecord) => void) => () => void;
 }

@@ -27,6 +27,7 @@ const api: AppApi = {
   markNotificationRead: (id) => ipcRenderer.invoke(IPC_CHANNELS.markNotificationRead, id),
   markAllNotificationsRead: () => ipcRenderer.invoke(IPC_CHANNELS.markAllNotificationsRead),
   clearNotification: (id) => ipcRenderer.invoke(IPC_CHANNELS.clearNotification, id),
+  clearAllNotifications: () => ipcRenderer.invoke(IPC_CHANNELS.clearAllNotifications),
   onNotificationCreated: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, notification: NotificationRecord) =>
       callback(notification);

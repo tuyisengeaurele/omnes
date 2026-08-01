@@ -28,6 +28,7 @@ import {
 import { getLastUsername, setLastUsername } from '../services/core/preferences';
 import { getActiveLicense } from '../services/core/license-store';
 import {
+  clearAllNotifications,
   clearNotification,
   listNotifications,
   markAllNotificationsRead,
@@ -106,4 +107,6 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.clearNotification, (_event, id: string): void =>
     clearNotification(id),
   );
+
+  ipcMain.handle(IPC_CHANNELS.clearAllNotifications, (): void => clearAllNotifications());
 }

@@ -4,6 +4,7 @@ import log from 'electron-log/main';
 import { IPC_CHANNELS } from '@shared/ipc';
 import {
   addOrUpdateNotification,
+  clearAllNotifications as clearAllNotificationRecords,
   clearNotification as clearNotificationRecord,
   listNotificationRecords,
   markAllNotificationsRead as markAllNotificationRecordsRead,
@@ -56,4 +57,8 @@ export function markAllNotificationsRead(): void {
 
 export function clearNotification(id: string): void {
   clearNotificationRecord(id);
+}
+
+export function clearAllNotifications(): void {
+  clearAllNotificationRecords();
 }
