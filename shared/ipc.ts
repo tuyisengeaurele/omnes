@@ -33,6 +33,8 @@ export const IPC_CHANNELS = {
   setUserRole: 'user:set-role',
   setUserActive: 'user:set-active',
   resetUserPassword: 'user:reset-password',
+  getSalesSummary: 'reports:get-summary',
+  getTopProducts: 'reports:get-top-products',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -179,6 +181,22 @@ export interface UserResult {
   user: ManagedUser | null;
 }
 
+export type ReportRange = 'TODAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'ALL_TIME';
+
+export interface SalesSummary {
+  totalRevenue: number;
+  transactionCount: number;
+  averageSale: number;
+  cashTotal: number;
+  mobileMoneyTotal: number;
+}
+
+export interface TopProduct {
+  productName: string;
+  quantitySold: number;
+  revenue: number;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -214,4 +232,6 @@ export interface AppApi {
   setUserRole: (id: string, role: Role) => Promise<UserResult>;
   setUserActive: (id: string, isActive: boolean) => Promise<UserResult>;
   resetUserPassword: (id: string, newPassword: string) => Promise<UserResult>;
+  getSalesSummary: (range: ReportRange) => Promise<SalesSummary>;
+  getTopProducts: (range: ReportRange, limit?: number) => Promise<TopProduct[]>;
 }
