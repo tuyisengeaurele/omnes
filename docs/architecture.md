@@ -460,6 +460,62 @@ became the second file to create a real named user — `vitest.config.ts`
 now sets `fileParallelism: false` so test files run sequentially against
 the shared database, matching how the suite actually needs to behave.
 
+## User Management
+
+`users.ts` is the first module in the app where every exported function
+checks `getSession()?.role === 'ADMIN'` before doing anything else, via a
+shared `requireAdmin()` helper — not just the one destructive handler
+Backup added (`performRestore()`). `listUsers()` returns an empty array
+for a non-admin caller rather than throwing, matching how a read-only
+`AppApi` member should fail quietly in the UI; the four mutating
+functions (`createUser`, `setUserRole`, `setUserActive`,
+`resetUserPassword`) return the same `UserResult` shape
+(`{ success, message, user }`) that `ProductResult`/`SaleResult` already
+established, so the IPC handlers stay pure passthroughs again.
+
+Two guards exist beyond the role check: `setUserRole` and
+`setUserActive` both refuse to leave the app with zero active admins
+(counting `role: 'ADMIN', isActive: true` rows before allowing a demotion
+or deactivation that would drop that count to zero), and
+`setUserActive` separately refuses to let the calling admin deactivate
+their own account. These two guards are structurally impossible to
+exercise independently through `setUserActive` alone when there's
+exactly one admin — the self-deactivation check fires first and masks
+the last-admin check entirely, since the only session that could ever
+call it _is_ that one admin. `tests/unit/users.test.ts` exercises the
+last-admin guard through `setUserRole` instead (no self-check there to
+get in the way), and the self-deactivation guard through
+`setUserActive` directly.
+
+The five new `AuditAction` values (`USER_CREATED`, `USER_ROLE_CHANGED`,
+`USER_DEACTIVATED`, `USER_REACTIVATED`, `USER_PASSWORD_RESET`) record the
+_target_ user's `userId`/`username` — the account being changed, not the
+admin making the change — matching `ADMIN_CREATED`'s existing shape from
+Authentication rather than introducing a second actor/target pattern
+into `AuditLog`. Knowing who performed the change isn't tracked yet;
+that would need a schema change (a second nullable actor column) that
+no current feature needs.
+
+`ManagedUser`, the type crossing IPC, deliberately omits `passwordHash`
+— `toManagedUser()` in `users.ts` builds it field-by-field from the
+Prisma row rather than spreading the row, so a future column added to
+`User` doesn't silently leak across IPC by default the way a spread
+would. `resetUserPassword` takes a plain new password and re-hashes it
+server-side (same `bcryptjs`/`SALT_ROUNDS` as `createFirstAdmin`/
+`createUser`); there's no "email a reset link" flow since the app has no
+email/network dependency anywhere else to piggyback on.
+
+`AddUserForm.tsx` is create-only, unlike `ProductForm.tsx`'s shared
+add/edit pattern — editing an existing user only ever changes role,
+active state, or password, each already a dedicated one-click action in
+`UsersPanel.tsx`'s row, so there's no "edit user" form to reuse the
+create form for. The e2e suite adds a real cashier account
+(`e2e-cashier-${Date.now()}`) after the restore step and asserts it's
+visible in the list — a per-run-unique username needs no `.first()`
+disambiguation the way the Inventory/POS product-name assertions
+elsewhere in the same test do, since `User.username` is unique by
+constraint, not just by convention.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
