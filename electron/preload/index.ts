@@ -42,6 +42,13 @@ const api: AppApi = {
   createSale: (input) => ipcRenderer.invoke(IPC_CHANNELS.createSale, input),
   listSales: () => ipcRenderer.invoke(IPC_CHANNELS.listSales),
   getSale: (id) => ipcRenderer.invoke(IPC_CHANNELS.getSale, id),
+  listUsers: () => ipcRenderer.invoke(IPC_CHANNELS.listUsers),
+  createUser: (username, password, role) =>
+    ipcRenderer.invoke(IPC_CHANNELS.createUser, username, password, role),
+  setUserRole: (id, role) => ipcRenderer.invoke(IPC_CHANNELS.setUserRole, id, role),
+  setUserActive: (id, isActive) => ipcRenderer.invoke(IPC_CHANNELS.setUserActive, id, isActive),
+  resetUserPassword: (id, newPassword) =>
+    ipcRenderer.invoke(IPC_CHANNELS.resetUserPassword, id, newPassword),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);
