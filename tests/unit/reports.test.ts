@@ -26,6 +26,12 @@ describe('resolveRange', () => {
     expect(from).toEqual(new Date(2024, 0, 15, 0, 0, 0));
   });
 
+  it("THIS_WEEK on a Sunday starts on the current week's Monday", () => {
+    const sunday = new Date(2024, 0, 21, 9, 0, 0);
+    const { from } = resolveRange('THIS_WEEK', sunday);
+    expect(from).toEqual(new Date(2024, 0, 15, 0, 0, 0));
+  });
+
   it('THIS_MONTH starts on the 1st', () => {
     const { from } = resolveRange('THIS_MONTH', now);
     expect(from).toEqual(new Date(2024, 0, 1, 0, 0, 0));
@@ -33,6 +39,6 @@ describe('resolveRange', () => {
 
   it('ALL_TIME has no meaningful lower bound', () => {
     const { from } = resolveRange('ALL_TIME', now);
-    expect(from.getTime()).toBeLessThan(new Date(2000, 0, 1).getTime());
+    expect(from).toEqual(new Date(0));
   });
 });
