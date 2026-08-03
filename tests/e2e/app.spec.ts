@@ -75,6 +75,15 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await confirmButton.click();
   await expect(window.getByText('Restore completed')).toBeVisible({ timeout: 30_000 });
 
+  // A per-run-unique username, so this assertion never needs .first() the
+  // way the product-name-based ones elsewhere in this file do.
+  const cashierUsername = `e2e-cashier-${Date.now()}`;
+  await window.getByRole('button', { name: 'Add user' }).click();
+  await window.getByLabel('Username').fill(cashierUsername);
+  await window.getByLabel('Password').fill('cashier-password-123');
+  await window.getByRole('button', { name: 'Add user' }).click();
+  await expect(window.getByText(cashierUsername)).toBeVisible({ timeout: 10_000 });
+
   // The SKU (not the product name) is what's actually unique per run —
   // "E2E Test Widget" repeats across every local re-run of this suite, so
   // every locator below that needs to identify *this run's* product uses

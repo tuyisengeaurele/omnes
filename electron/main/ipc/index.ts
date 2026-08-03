@@ -7,13 +7,16 @@ import {
   type CreateSaleInput,
   type DatabaseHealthResult,
   type LicenseInfo,
+  type ManagedUser,
   type NotificationRecord,
   type Product,
   type ProductInput,
   type ProductResult,
+  type Role,
   type Sale,
   type SaleResult,
   type Session,
+  type UserResult,
 } from '@shared/ipc';
 import {
   listBackups,
@@ -47,6 +50,13 @@ import {
   updateProduct,
 } from '../services/core/products';
 import { createSale, getSale, listSales } from '../services/core/sales';
+import {
+  createUser,
+  listUsers,
+  resetUserPassword,
+  setUserActive,
+  setUserRole,
+} from '../services/core/users';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -152,4 +162,27 @@ export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.listSales, (): Promise<Sale[]> => listSales());
 
   ipcMain.handle(IPC_CHANNELS.getSale, (_event, id: string): Promise<Sale | null> => getSale(id));
+
+  ipcMain.handle(IPC_CHANNELS.listUsers, (): Promise<ManagedUser[]> => listUsers());
+
+  ipcMain.handle(
+    IPC_CHANNELS.createUser,
+    (_event, username: string, password: string, role: Role): Promise<UserResult> =>
+      createUser(username, password, role),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.setUserRole, (_event, id: string, role: Role): Promise<UserResult> =>
+    setUserRole(id, role),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.setUserActive,
+    (_event, id: string, isActive: boolean): Promise<UserResult> => setUserActive(id, isActive),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.resetUserPassword,
+    (_event, id: string, newPassword: string): Promise<UserResult> =>
+      resetUserPassword(id, newPassword),
+  );
 }

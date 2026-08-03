@@ -3,11 +3,11 @@ import { prisma } from './database';
 import { Prisma } from '../../../../generated/prisma/client';
 import type { Role, Session } from '@shared/ipc';
 
-const SALT_ROUNDS = 12;
+export const SALT_ROUNDS = 12;
 const INVALID_CREDENTIALS_MESSAGE = 'Invalid username or password';
 const ACCOUNT_ALREADY_EXISTS_MESSAGE = 'An account already exists';
-const MIN_USERNAME_LENGTH = 3;
-const MIN_PASSWORD_LENGTH = 8;
+export const MIN_USERNAME_LENGTH = 3;
+export const MIN_PASSWORD_LENGTH = 8;
 
 let currentSession: Session | null = null;
 

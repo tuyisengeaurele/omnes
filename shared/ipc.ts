@@ -28,6 +28,11 @@ export const IPC_CHANNELS = {
   createSale: 'sale:create',
   listSales: 'sale:list',
   getSale: 'sale:get',
+  listUsers: 'user:list',
+  createUser: 'user:create',
+  setUserRole: 'user:set-role',
+  setUserActive: 'user:set-active',
+  resetUserPassword: 'user:reset-password',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -160,6 +165,20 @@ export interface SaleResult {
   sale: Sale | null;
 }
 
+export interface ManagedUser {
+  id: string;
+  username: string;
+  role: Role;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface UserResult {
+  success: boolean;
+  message: string;
+  user: ManagedUser | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -190,4 +209,9 @@ export interface AppApi {
   createSale: (input: CreateSaleInput) => Promise<SaleResult>;
   listSales: () => Promise<Sale[]>;
   getSale: (id: string) => Promise<Sale | null>;
+  listUsers: () => Promise<ManagedUser[]>;
+  createUser: (username: string, password: string, role: Role) => Promise<UserResult>;
+  setUserRole: (id: string, role: Role) => Promise<UserResult>;
+  setUserActive: (id: string, isActive: boolean) => Promise<UserResult>;
+  resetUserPassword: (id: string, newPassword: string) => Promise<UserResult>;
 }

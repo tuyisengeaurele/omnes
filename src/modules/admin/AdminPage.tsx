@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { BackupPanel } from './BackupPanel';
+import { UsersPanel } from './UsersPanel';
 import styles from './AdminPage.module.css';
 
 export function AdminPage() {
@@ -9,6 +10,7 @@ export function AdminPage() {
     <div className={styles.page}>
       <h1 className={styles.title}>{t('modules.admin')}</h1>
       <BackupPanel />
+      <UsersPanel />
     </div>
   );
 }
