@@ -49,6 +49,8 @@ const api: AppApi = {
   setUserActive: (id, isActive) => ipcRenderer.invoke(IPC_CHANNELS.setUserActive, id, isActive),
   resetUserPassword: (id, newPassword) =>
     ipcRenderer.invoke(IPC_CHANNELS.resetUserPassword, id, newPassword),
+  getSalesSummary: (range) => ipcRenderer.invoke(IPC_CHANNELS.getSalesSummary, range),
+  getTopProducts: (range, limit) => ipcRenderer.invoke(IPC_CHANNELS.getTopProducts, range, limit),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);
