@@ -106,9 +106,15 @@ role-rejection message renders instead if either call rejects.
 - Non-manager/non-admin sessions get a clear thrown error from both `reports.ts`
   functions, surfaced as an inline message in `ReportsPage.tsx` — never
   zeroed cards.
-- All aggregation happens in the database query (`groupBy`/`aggregate`), not
-  by pulling every row into Node and summing in JS, so this stays correct
-  and reasonably fast as `Sale`/`SaleItem` grow.
+- `getSalesSummary` aggregates entirely in the database (`prisma.sale.aggregate()`
+  for revenue/count, a second scoped `aggregate()` for the cash subtotal) —
+  no row pulled into Node. `getTopProducts` needs `quantity * unitPrice` per
+  line, which Prisma's `groupBy` can't express as a summed field without raw
+  SQL; it fetches `SaleItem` rows already filtered to the date range (via the
+  `sale: { createdAt: ... } }` relation filter) and reduces them in Node
+  instead — simpler and just as correct as raw SQL for a single shop's
+  realistic sale volume, without introducing a new raw-SQL pattern into this
+  file for one query.
 
 ## Testing
 
