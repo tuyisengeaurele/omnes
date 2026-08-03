@@ -104,14 +104,58 @@ describe('users', () => {
     expect(result.message).toBe('You cannot deactivate your own account');
   });
 
-  it('rejects removing the role of the last active admin', async () => {
+  it('rejects an admin changing their own role', async () => {
     const adminUsername = await bootstrapAdmin();
     const admin = await prisma.user.findUnique({ where: { username: adminUsername } });
 
     const result = await setUserRole(admin!.id, 'MANAGER');
     expect(result.success).toBe(false);
+    expect(result.message).toBe('You cannot change your own role');
+  });
+
+  // setUserRole now rejects any self-targeted change before it ever reaches
+  // the last-admin count check (see above), so exercising that count check
+  // needs a target that isn't the calling session. Deactivating the calling
+  // admin's own row directly (bypassing the guarded functions) simulates a
+  // stale cached session whose real DB row is no longer an active admin —
+  // an accurate scenario in this app, since a session's role/active state is
+  // cached at login and never re-synced against the database per call.
+  it('rejects removing the role of the last active admin', async () => {
+    const adminUsername = await bootstrapAdmin();
+    const admin = await prisma.user.findUnique({ where: { username: adminUsername } });
+    await prisma.user.update({ where: { id: admin!.id }, data: { isActive: false } });
+
+    const second = await createUser(uniqueUsername('admin2'), OTHER_PASSWORD, 'ADMIN');
+    const secondId = second.user?.id as string;
+
+    const result = await setUserRole(secondId, 'MANAGER');
+    expect(result.success).toBe(false);
     expect(result.message).toBe('Cannot remove the last administrator');
   });
+
+  it('does not let concurrent role changes leave zero active admins', async () => {
+    const adminUsername = await bootstrapAdmin();
+    const admin = await prisma.user.findUnique({ where: { username: adminUsername } });
+    await prisma.user.update({ where: { id: admin!.id }, data: { isActive: false } });
+
+    const second = await createUser(uniqueUsername('admin2'), OTHER_PASSWORD, 'ADMIN');
+    const third = await createUser(uniqueUsername('admin3'), OTHER_PASSWORD, 'ADMIN');
+    const secondId = second.user?.id as string;
+    const thirdId = third.user?.id as string;
+
+    const [first, other] = await Promise.all([
+      setUserRole(secondId, 'MANAGER'),
+      setUserRole(thirdId, 'MANAGER'),
+    ]);
+
+    const successes = [first, other].filter((result) => result.success);
+    expect(successes).toHaveLength(1);
+
+    const remainingActiveAdmins = await prisma.user.count({
+      where: { role: 'ADMIN', isActive: true },
+    });
+    expect(remainingActiveAdmins).toBe(1);
+  }, 15_000);
 
   it('allows deactivating a second admin when another remains active', async () => {
     await bootstrapAdmin();

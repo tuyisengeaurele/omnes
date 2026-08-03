@@ -33,8 +33,13 @@ function requireAdmin(): { userId: string; username: string } | null {
 }
 
 function toErrorMessage(error: unknown): string {
-  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-    return 'Username already in use';
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2002') {
+      return 'Username already in use';
+    }
+    if (error.code === 'P2034') {
+      return 'Another change is in progress — please try again';
+    }
   }
   return error instanceof Error ? error.message : String(error);
 }
@@ -80,26 +85,42 @@ export async function createUser(
 }
 
 export async function setUserRole(id: string, role: Role): Promise<UserResult> {
-  if (!requireAdmin()) {
+  const admin = requireAdmin();
+  if (!admin) {
     return { success: false, message: NOT_ADMIN_MESSAGE, user: null };
   }
 
   try {
-    const target = await prisma.user.findUnique({ where: { id } });
-    if (!target) {
-      throw new Error('User not found');
+    if (id === admin.userId) {
+      throw new Error('You cannot change your own role');
     }
 
-    if (target.role === 'ADMIN' && target.isActive && role !== 'ADMIN') {
-      const activeAdminCount = await prisma.user.count({
-        where: { role: 'ADMIN', isActive: true },
-      });
-      if (activeAdminCount <= 1) {
-        throw new Error('Cannot remove the last administrator');
-      }
-    }
+    // The last-active-admin count check and the role update must be one
+    // atomic unit, not two separate queries — two concurrent role changes
+    // can otherwise both observe activeAdminCount > 1 and both proceed,
+    // jointly leaving zero active admins. Same race class as
+    // createFirstAdmin/createSale; Serializable isolation makes Postgres
+    // detect the conflict and abort the loser with a P2034 error instead.
+    const row = await prisma.$transaction(
+      async (tx) => {
+        const target = await tx.user.findUnique({ where: { id } });
+        if (!target) {
+          throw new Error('User not found');
+        }
 
-    const row = await prisma.user.update({ where: { id }, data: { role } });
+        if (target.role === 'ADMIN' && target.isActive && role !== 'ADMIN') {
+          const activeAdminCount = await tx.user.count({
+            where: { role: 'ADMIN', isActive: true },
+          });
+          if (activeAdminCount <= 1) {
+            throw new Error('Cannot remove the last administrator');
+          }
+        }
+
+        return tx.user.update({ where: { id }, data: { role } });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     await prisma.auditLog.create({
       data: { userId: row.id, username: row.username, action: 'USER_ROLE_CHANGED' },
@@ -122,21 +143,29 @@ export async function setUserActive(id: string, isActive: boolean): Promise<User
       throw new Error('You cannot deactivate your own account');
     }
 
-    const target = await prisma.user.findUnique({ where: { id } });
-    if (!target) {
-      throw new Error('User not found');
-    }
+    // Same atomicity requirement as setUserRole above — see the comment
+    // there for why this must be one Serializable transaction, not a
+    // separate count-then-update.
+    const row = await prisma.$transaction(
+      async (tx) => {
+        const target = await tx.user.findUnique({ where: { id } });
+        if (!target) {
+          throw new Error('User not found');
+        }
 
-    if (!isActive && target.role === 'ADMIN' && target.isActive) {
-      const activeAdminCount = await prisma.user.count({
-        where: { role: 'ADMIN', isActive: true },
-      });
-      if (activeAdminCount <= 1) {
-        throw new Error('Cannot deactivate the last administrator');
-      }
-    }
+        if (!isActive && target.role === 'ADMIN' && target.isActive) {
+          const activeAdminCount = await tx.user.count({
+            where: { role: 'ADMIN', isActive: true },
+          });
+          if (activeAdminCount <= 1) {
+            throw new Error('Cannot deactivate the last administrator');
+          }
+        }
 
-    const row = await prisma.user.update({ where: { id }, data: { isActive } });
+        return tx.user.update({ where: { id }, data: { isActive } });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
 
     await prisma.auditLog.create({
       data: {

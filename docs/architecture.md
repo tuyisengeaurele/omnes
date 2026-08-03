@@ -476,16 +476,49 @@ established, so the IPC handlers stay pure passthroughs again.
 Two guards exist beyond the role check: `setUserRole` and
 `setUserActive` both refuse to leave the app with zero active admins
 (counting `role: 'ADMIN', isActive: true` rows before allowing a demotion
-or deactivation that would drop that count to zero), and
-`setUserActive` separately refuses to let the calling admin deactivate
-their own account. These two guards are structurally impossible to
-exercise independently through `setUserActive` alone when there's
-exactly one admin — the self-deactivation check fires first and masks
-the last-admin check entirely, since the only session that could ever
-call it _is_ that one admin. `tests/unit/users.test.ts` exercises the
-last-admin guard through `setUserRole` instead (no self-check there to
-get in the way), and the self-deactivation guard through
-`setUserActive` directly.
+or deactivation that would drop that count to zero), and each separately
+refuses to let the calling admin act on their own account — `setUserRole`
+blocks any self-role-change, `setUserActive` blocks self-deactivation
+only, mirroring the same "ask another admin" friction the confirmation
+gate on Backup's restore already established for a different destructive
+action.
+
+**TOCTOU fix, found by code review, not written correctly the first
+time:** the last-active-admin count check and the row update were
+originally two separate queries, not one atomic unit — a plain
+count-then-update, the exact race class `createFirstAdmin` and
+`createSale` already had to fix elsewhere in this codebase. An
+independent review reproduced it directly against the first version of
+this file: two concurrent `setUserRole` calls could both observe
+`activeAdminCount > 1` and both proceed, jointly leaving zero active
+admins — an unrecoverable lockout, since no UI is left that can promote
+anyone back to `ADMIN`. Both guards now run inside one
+`Serializable`-isolation `$transaction` (count check and update
+together), the same fix shape as `createFirstAdmin`/`createSale`,
+catching `P2034` and converting it to a clean retry message in
+`toErrorMessage()`. `tests/unit/users.test.ts`'s
+`'does not let concurrent role changes leave zero active admins'` test
+reproduces the original race and proves the transaction closes it,
+mirroring `sales.test.ts`'s oversell race test.
+
+The same review also caught that `setUserRole` had no self-change guard
+at all — unlike `setUserActive`'s self-deactivation check — meaning an
+admin could demote themselves via the role `<select>` in
+`UsersPanel.tsx` with no server-side guard against it. Fixed by adding
+the same unconditional self-check `setUserActive` already had. This
+changes how the last-admin count guard is exercised in tests: with both
+functions now blocking any self-target, the guard can no longer be
+reached through the calling session's own account. `tests/unit/
+users.test.ts` reaches it instead by deactivating the calling admin's
+own row directly (bypassing the guarded functions, not going through
+`setUserActive`) before creating and demoting other admins — this
+simulates a stale cached session whose real DB row is no longer an
+active admin, an accurate scenario here since `Session`
+(`electron/main/services/core/auth.ts`) is cached at login and never
+re-synced against the database on each call. That staleness is a known,
+accepted characteristic of this app's single-session model (see
+Authentication's session-locking scope note above), not something this
+sub-project introduces or needs to fix.
 
 The five new `AuditAction` values (`USER_CREATED`, `USER_ROLE_CHANGED`,
 `USER_DEACTIVATED`, `USER_REACTIVATED`, `USER_PASSWORD_RESET`) record the
