@@ -1,0 +1,106 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 900px;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.rangePicker {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.rangeButton,
+.rangeActive {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+
+.rangeActive {
+  background-color: var(--color-focus-ring);
+  border-color: var(--color-focus-ring);
+  color: white;
+  font-weight: 600;
+}
+
+.error {
+  color: #e5484d;
+  margin: 0;
+}
+
+.empty {
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.cardLabel {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.cardValue {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+}
