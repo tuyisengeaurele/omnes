@@ -10,6 +10,7 @@ import { Dashboard } from '../modules/core/Dashboard';
 import { AdminPage } from '../modules/admin/AdminPage';
 import { ProductsPage } from '../modules/inventory/ProductsPage';
 import { PosPage } from '../modules/pos/PosPage';
+import { ReportsPage } from '../modules/reports/ReportsPage';
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
@@ -48,6 +49,7 @@ export function App() {
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="inventory" element={<ProductsPage />} />
                 <Route path="pos" element={<PosPage />} />
+                <Route path="reports" element={<ReportsPage />} />
               </Route>
             </Routes>
           </HashRouter>

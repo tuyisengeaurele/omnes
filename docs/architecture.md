@@ -549,6 +549,82 @@ disambiguation the way the Inventory/POS product-name assertions
 elsewhere in the same test do, since `User.username` is unique by
 constraint, not just by convention.
 
+## Reports
+
+`electron/main/services/core/reports.ts` is the first module that lives
+in `core/` despite conceptually belonging to a different named business
+module ("Reports") — this follows actual established practice over the
+folder split `docs/architecture.md`'s own "Service-layer boundary"
+section describes above, since `products.ts`/`sales.ts`/`users.ts` were
+never actually placed in `inventory/`/`pos/`/`admin/` either; this build
+has consistently put every service in `core/` regardless of the
+per-module folders that exist but stay empty on the main-process side
+(the renderer side, `src/modules/*`, does follow its own per-module
+split correctly).
+
+`resolveRange(range, now)` is pure date math — no Prisma, no Electron —
+unit-tested in isolation the same way `notification-rules.ts`'s
+license-expiry checks are, by injecting a fixed `now` rather than
+depending on the real clock. `TODAY`/`THIS_WEEK`/`THIS_MONTH` all
+resolve to local-midnight boundaries (`THIS_WEEK` starts Monday, via
+`(now.getDay() + 6) % 7` days back); `ALL_TIME`'s lower bound is the
+Unix epoch rather than a null/undefined case, so every query function
+can use one uniform `{ gte: from, lte: to }` filter with no special
+case for "no lower bound."
+
+`getSalesSummary()` aggregates entirely in the database via
+`prisma.sale.aggregate()` (revenue/count in one call, a cash-only
+subtotal in a second scoped call) — no `Sale` row is ever pulled into
+Node just to be summed. `getTopProducts()` can't do the same for its
+per-product revenue figure: `quantity * unitPrice` isn't expressible as
+a plain Prisma `groupBy` sum without raw SQL, so it fetches `SaleItem`
+rows already filtered to the date range (via the `sale: { createdAt:
+... } }` relation filter) and reduces them into a `Map` in Node instead
+— simpler than introducing a raw-SQL query into this file for the one
+case that needs it, and correct at the sale volume a single shop
+actually produces. This was a deliberate refinement made while writing
+the implementation plan, after the initial design spec's draft claimed
+all aggregation would be database-side; the spec was corrected before
+implementation started rather than left inaccurate.
+
+`requireManagerOrAdmin()` is the app's first ADMIN-**or**-MANAGER gate —
+every prior role check (`performRestore()` in Backup, all of `users.ts`)
+is ADMIN-only. Both `getSalesSummary`/`getTopProducts` call it as their
+first statement and **throw** on rejection, rather than returning a
+zeroed/empty result the way `listUsers()` returns `[]` for a non-admin:
+an empty user list reads as "no users," which is harmless, but an
+all-zero sales summary would read as "no sales happened," which is
+actively misleading to whoever's looking at it. `ReportsPage.tsx`
+catches the rejection and shows an inline message instead of numbers.
+
+No `Serializable` transaction is needed anywhere in this file — unlike
+`createFirstAdmin`, `createSale`, and `setUserRole`/`setUserActive`
+(three prior, reviewer-caught TOCTOU races from a plain count-then-write
+guard), `getSalesSummary`/`getTopProducts` are pure reads with no
+subsequent write, so there's no race to protect against.
+
+`ReportsPage.tsx` fetches both endpoints in parallel on mount and on
+every range change; per this app's `react-hooks/set-state-in-effect`
+lint rule, state can only be set from inside the resolved `.then()`/
+`.catch()` callbacks, not synchronously at the top of the effect body —
+so switching ranges swaps directly from the previous range's data to
+the new range's once it resolves, with no intermediate "loading" flash
+after the first load (a deliberate, low-cost simplification, not an
+oversight: this is a fast local-database read, and the effect's own
+`cancelled` flag already prevents a stale response from a superseded
+range change from ever being applied).
+
+The e2e suite's Reports check (after the existing POS checkout step)
+deliberately asserts loosely — that the summary card renders and that
+the run's product name appears in the top-products table — rather than
+asserting an exact revenue or quantity figure. Nothing clears `Sale`/
+`Product` rows between local e2e runs (only `User`, via this file's own
+`beforeEach`), so repeated same-day local runs accumulate multiple
+sales under the same `"E2E Test Widget"` product name; since
+`getTopProducts` groups by `productName`, an exact-value assertion
+would only hold on a clean database and would flake on a second
+same-day local run.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
@@ -599,8 +675,11 @@ utility, `AppShell`'s sidebar rendering, `auth.ts`'s login/bootstrap/session log
 against the real local database, `license.ts`'s signature verification against
 throwaway test keypairs, `backup.ts`'s binary discovery, create/verify/restore
 round trip, and due-date scheduling math, `notification-rules.ts`'s license-expiry
-date math, `products.ts`'s CRUD/validation/duplicate-SKU logic, and `sales.ts`'s
-transactional checkout — including a real two-concurrent-checkouts race test — against
+date math, `products.ts`'s CRUD/validation/duplicate-SKU logic, `sales.ts`'s
+transactional checkout — including a real two-concurrent-checkouts race test —
+`users.ts`'s role/last-admin/self-change guards, and `reports.ts`'s
+`resolveRange` boundaries plus `getSalesSummary`/`getTopProducts`' aggregation
+correctness and ADMIN/MANAGER gate, against
 the real local database (all forced to Vitest's `node` environment via a
 `// @vitest-environment node` comment, since they're Node/Prisma/crypto/child-process
 logic, not DOM logic). Every Prisma-backed test file runs sequentially, not in

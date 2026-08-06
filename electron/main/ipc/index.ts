@@ -12,10 +12,13 @@ import {
   type Product,
   type ProductInput,
   type ProductResult,
+  type ReportRange,
   type Role,
   type Sale,
   type SaleResult,
+  type SalesSummary,
   type Session,
+  type TopProduct,
   type UserResult,
 } from '@shared/ipc';
 import {
@@ -57,6 +60,7 @@ import {
   setUserActive,
   setUserRole,
 } from '../services/core/users';
+import { getSalesSummary, getTopProducts } from '../services/core/reports';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -184,5 +188,16 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.resetUserPassword,
     (_event, id: string, newPassword: string): Promise<UserResult> =>
       resetUserPassword(id, newPassword),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.getSalesSummary,
+    (_event, range: ReportRange): Promise<SalesSummary> => getSalesSummary(range),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.getTopProducts,
+    (_event, range: ReportRange, limit?: number): Promise<TopProduct[]> =>
+      getTopProducts(range, limit),
   );
 }
