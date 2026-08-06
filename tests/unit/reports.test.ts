@@ -154,6 +154,27 @@ describe('getSalesSummary and getTopProducts', () => {
     expect(top[1]).toEqual({ productName: 'Widget', quantitySold: 10, revenue: 1000 });
   });
 
+  it('accumulates a product across multiple separate sales, not just within one', async () => {
+    // The Node-side reduction keys its Map by productName alone — this
+    // specifically exercises that two distinct Sale rows sharing a product
+    // name get summed together, which a regression that accidentally
+    // scoped the accumulator per-sale (e.g. keying by saleId+productName)
+    // would silently fail.
+    await bootstrapAdmin();
+    const now = new Date();
+
+    await createTestSale(500, 'CASH', now, [
+      { productName: 'Widget', quantity: 1, unitPrice: 500 },
+    ]);
+    await createTestSale(1500, 'CASH', now, [
+      { productName: 'Widget', quantity: 3, unitPrice: 500 },
+    ]);
+
+    const top = await getTopProducts('TODAY');
+    expect(top).toHaveLength(1);
+    expect(top[0]).toEqual({ productName: 'Widget', quantitySold: 4, revenue: 2000 });
+  });
+
   it('returns an empty array for a range with no sales', async () => {
     await bootstrapAdmin();
     expect(await getTopProducts('THIS_MONTH')).toEqual([]);
