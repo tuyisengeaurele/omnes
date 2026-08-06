@@ -114,6 +114,20 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await expect(window.getByText(/E2E Test Widget/)).toBeVisible();
   await window.getByRole('button', { name: 'Close' }).click();
 
+  // Loose assertions deliberately: nothing clears Sale/Product rows between
+  // local e2e runs (only User, via this file's own beforeEach), so repeated
+  // same-day local runs accumulate multiple sales under the same
+  // "E2E Test Widget" product name — getTopProducts groups by productName,
+  // so an exact revenue/quantity assertion here would be correct only on a
+  // clean database and would flake on any second same-day local run.
+  // Checking the summary card renders (proving the ADMIN/MANAGER gate
+  // accepted this session and real data came back, not an error) and that
+  // this run's product name appears in the top-products table is enough to
+  // prove the feature actually works end-to-end.
+  await window.getByRole('link', { name: 'Reports' }).click();
+  await expect(window.getByText('Total revenue')).toBeVisible({ timeout: 10_000 });
+  await expect(window.getByText('E2E Test Widget')).toBeVisible();
+
   await window.getByRole('link', { name: 'Inventory' }).click();
   // Stock was 5, minus the 1 just sold in POS — identifying the row by the
   // unique SKU (not the shared name) so this checks this run's actual row.
