@@ -10,7 +10,7 @@ const MODULE_NAV = [
   { key: 'modules.core', path: '/', enabled: true },
   { key: 'modules.pos', path: '/pos', enabled: true },
   { key: 'modules.inventory', path: '/inventory', enabled: true },
-  { key: 'modules.crm', path: '/crm', enabled: false },
+  { key: 'modules.crm', path: '/crm', enabled: true },
   { key: 'modules.reports', path: '/reports', enabled: true },
   { key: 'modules.admin', path: '/admin', enabled: true },
 ] as const;
