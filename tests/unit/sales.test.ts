@@ -161,6 +161,9 @@ describe('sales', () => {
     const customer = await prisma.customer.create({
       data: { name: `Test Customer ${randomUUID()}` },
     });
+    const otherCustomer = await prisma.customer.create({
+      data: { name: `Test Customer ${randomUUID()}` },
+    });
 
     const result = await createSale({
       items: [{ productId, quantity: 1 }],
@@ -174,8 +177,20 @@ describe('sales', () => {
     expect(result.sale?.customerName).toBe(customer.name);
     if (result.sale) createdSaleIds.push(result.sale.id);
 
+    const otherResult = await createSale({
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: 'CASH',
+      amountTendered: 500,
+      customerId: otherCustomer.id,
+    });
+    if (otherResult.sale) createdSaleIds.push(otherResult.sale.id);
+
+    // Proves listSales(customerId) actually filters, not just that it
+    // includes the right sale — a dropped `where` clause would still pass
+    // an includes-only assertion.
     const customerSales = await listSales(customer.id);
     expect(customerSales.some((sale) => sale.id === result.sale?.id)).toBe(true);
+    expect(customerSales.some((sale) => sale.id === otherResult.sale?.id)).toBe(false);
   });
 
   it('degrades to an unattributed sale when the referenced customer no longer exists', async () => {

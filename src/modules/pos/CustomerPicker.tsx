@@ -28,11 +28,16 @@ export function CustomerPicker({ selected, onSelect }: CustomerPickerProps) {
     };
   }, []);
 
+  const handleSelect = (customer: Customer | null) => {
+    setQuery('');
+    onSelect(customer);
+  };
+
   if (selected) {
     return (
       <div className={styles.picker}>
         <span className={styles.selected}>{selected.name}</span>
-        <button type="button" onClick={() => onSelect(null)}>
+        <button type="button" onClick={() => handleSelect(null)}>
           {t('pos.walkIn')}
         </button>
       </div>
@@ -64,7 +69,7 @@ export function CustomerPicker({ selected, onSelect }: CustomerPickerProps) {
               <button
                 type="button"
                 className={styles.resultItem}
-                onClick={() => onSelect(customer)}
+                onClick={() => handleSelect(customer)}
               >
                 <span>{customer.name}</span>
                 {customer.phone && <span className={styles.resultMeta}>{customer.phone}</span>}
