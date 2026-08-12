@@ -20,6 +20,11 @@ export function ReceiptView({ sale, onDone }: ReceiptViewProps) {
             {t('pos.cashier')}: {sale.cashierUsername}
           </p>
         )}
+        {sale.customerName && (
+          <p className={styles.cashier}>
+            {t('pos.customer')}: {sale.customerName}
+          </p>
+        )}
         <ul className={styles.items}>
           {sale.items.map((item) => (
             <li key={item.id} className={styles.item}>
