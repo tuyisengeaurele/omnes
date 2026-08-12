@@ -18,6 +18,7 @@ describe('sales', () => {
   afterAll(async () => {
     await prisma.sale.deleteMany({ where: { id: { in: createdSaleIds } } });
     await prisma.product.deleteMany({ where: { id: { in: createdProductIds } } });
+    await prisma.customer.deleteMany({ where: { name: { startsWith: 'Test Customer' } } });
     await prisma.$disconnect();
   });
 
@@ -153,6 +154,51 @@ describe('sales', () => {
     // verifying the row still exists) — out of scope for this file, flagged
     // separately. Leaving the session as-is for the rest of this suite is
     // harmless; no other test here depends on getSession() being cleared.
+  });
+
+  it('attributes a sale to a customer and snapshots their name', async () => {
+    const productId = await makeTestProduct(5, 500);
+    const customer = await prisma.customer.create({
+      data: { name: `Test Customer ${randomUUID()}` },
+    });
+
+    const result = await createSale({
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: 'CASH',
+      amountTendered: 500,
+      customerId: customer.id,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sale?.customerId).toBe(customer.id);
+    expect(result.sale?.customerName).toBe(customer.name);
+    if (result.sale) createdSaleIds.push(result.sale.id);
+
+    const customerSales = await listSales(customer.id);
+    expect(customerSales.some((sale) => sale.id === result.sale?.id)).toBe(true);
+  });
+
+  it('degrades to an unattributed sale when the referenced customer no longer exists', async () => {
+    // Mirrors the stale-cashier test above: a customerId can outlive its
+    // Customer row (e.g. a restore reverting past the customer's creation)
+    // just as a cashierId can outlive its User row.
+    const productId = await makeTestProduct(5, 500);
+    const customer = await prisma.customer.create({
+      data: { name: `Test Customer ${randomUUID()}` },
+    });
+    await prisma.customer.delete({ where: { id: customer.id } });
+
+    const result = await createSale({
+      items: [{ productId, quantity: 1 }],
+      paymentMethod: 'CASH',
+      amountTendered: 500,
+      customerId: customer.id,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.sale?.customerId).toBeNull();
+    expect(result.sale?.customerName).toBeNull();
+    if (result.sale) createdSaleIds.push(result.sale.id);
   });
 
   it('lists and retrieves a sale', async () => {

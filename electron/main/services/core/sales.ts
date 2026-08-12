@@ -6,6 +6,8 @@ import type { CreateSaleInput, Sale, SaleResult } from '@shared/ipc';
 interface SaleRow {
   id: string;
   cashierUsername: string | null;
+  customerId: string | null;
+  customerName: string | null;
   paymentMethod: string;
   amountTendered: number | null;
   changeGiven: number | null;
@@ -24,6 +26,8 @@ function toSale(row: SaleRow): Sale {
   return {
     id: row.id,
     cashierUsername: row.cashierUsername,
+    customerId: row.customerId,
+    customerName: row.customerName,
     paymentMethod: row.paymentMethod as Sale['paymentMethod'],
     amountTendered: row.amountTendered,
     changeGiven: row.changeGiven,
@@ -78,6 +82,19 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
               ?.id ?? null)
           : null;
 
+        // Same reasoning as cashierId above: a customerId selected in the
+        // renderer moments earlier could reference a row that no longer
+        // exists by the time checkout actually runs (most plausibly the
+        // same restore-mid-shift scenario). Resolved inside this
+        // transaction, with the same graceful degrade to an unattributed
+        // sale rather than a failed checkout.
+        const customer = input.customerId
+          ? await tx.customer.findUnique({
+              where: { id: input.customerId },
+              select: { id: true, name: true },
+            })
+          : null;
+
         let total = 0;
         const lineData: {
           productId: string;
@@ -122,6 +139,8 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
           data: {
             cashierId,
             cashierUsername: session?.username ?? null,
+            customerId: customer?.id ?? null,
+            customerName: customer?.name ?? null,
             paymentMethod: input.paymentMethod,
             amountTendered: input.paymentMethod === 'CASH' ? input.amountTendered : null,
             changeGiven,
@@ -140,8 +159,9 @@ export async function createSale(input: CreateSaleInput): Promise<SaleResult> {
   }
 }
 
-export async function listSales(): Promise<Sale[]> {
+export async function listSales(customerId?: string): Promise<Sale[]> {
   const rows = await prisma.sale.findMany({
+    where: customerId ? { customerId } : undefined,
     include: { items: true },
     orderBy: { createdAt: 'desc' },
   });
