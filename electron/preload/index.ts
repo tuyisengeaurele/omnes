@@ -40,7 +40,7 @@ const api: AppApi = {
   setProductActive: (id, isActive) =>
     ipcRenderer.invoke(IPC_CHANNELS.setProductActive, id, isActive),
   createSale: (input) => ipcRenderer.invoke(IPC_CHANNELS.createSale, input),
-  listSales: () => ipcRenderer.invoke(IPC_CHANNELS.listSales),
+  listSales: (customerId) => ipcRenderer.invoke(IPC_CHANNELS.listSales, customerId),
   getSale: (id) => ipcRenderer.invoke(IPC_CHANNELS.getSale, id),
   listUsers: () => ipcRenderer.invoke(IPC_CHANNELS.listUsers),
   createUser: (username, password, role) =>
@@ -51,6 +51,12 @@ const api: AppApi = {
     ipcRenderer.invoke(IPC_CHANNELS.resetUserPassword, id, newPassword),
   getSalesSummary: (range) => ipcRenderer.invoke(IPC_CHANNELS.getSalesSummary, range),
   getTopProducts: (range, limit) => ipcRenderer.invoke(IPC_CHANNELS.getTopProducts, range, limit),
+  listCustomers: (includeInactive) =>
+    ipcRenderer.invoke(IPC_CHANNELS.listCustomers, includeInactive),
+  createCustomer: (input) => ipcRenderer.invoke(IPC_CHANNELS.createCustomer, input),
+  updateCustomer: (id, input) => ipcRenderer.invoke(IPC_CHANNELS.updateCustomer, id, input),
+  setCustomerActive: (id, isActive) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setCustomerActive, id, isActive),
 };
 
 contextBridge.exposeInMainWorld('omnes', api);
