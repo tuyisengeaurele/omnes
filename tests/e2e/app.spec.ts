@@ -84,6 +84,14 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await window.getByRole('button', { name: 'Add user' }).click();
   await expect(window.getByText(cashierUsername)).toBeVisible({ timeout: 10_000 });
 
+  // Unique per run, matching the cashier-username/SKU pattern above.
+  const customerName = `E2E Customer ${Date.now()}`;
+  await window.getByRole('link', { name: 'Customers' }).click();
+  await window.getByRole('button', { name: 'Add customer' }).click();
+  await window.getByLabel('Name').fill(customerName);
+  await window.getByRole('button', { name: 'Add customer' }).click();
+  await expect(window.getByText(customerName)).toBeVisible({ timeout: 10_000 });
+
   // The SKU (not the product name) is what's actually unique per run —
   // "E2E Test Widget" repeats across every local re-run of this suite, so
   // every locator below that needs to identify *this run's* product uses
@@ -103,6 +111,8 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await expect(window.getByText(sku)).toBeVisible({ timeout: 10_000 });
 
   await window.getByRole('link', { name: 'Point of Sale' }).click();
+  await window.getByPlaceholder('Search customers by name or phone').fill(customerName);
+  await window.getByText(customerName).click();
   // Searching by the unique SKU (ProductSearch matches on name/SKU/barcode)
   // returns exactly this run's product, no ambiguity.
   await window.getByPlaceholder('Search products by name, SKU, or barcode').fill(sku);
@@ -112,6 +122,7 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   await window.getByRole('button', { name: 'Checkout' }).click();
   await expect(window.getByRole('button', { name: 'Print' })).toBeVisible({ timeout: 10_000 });
   await expect(window.getByText(/E2E Test Widget/)).toBeVisible();
+  await expect(window.getByText(customerName)).toBeVisible();
   await window.getByRole('button', { name: 'Close' }).click();
 
   // Loose assertions deliberately: nothing clears Sale/Product rows between
@@ -132,6 +143,14 @@ test('bootstraps the first admin account and reaches the shell', async () => {
   // Stock was 5, minus the 1 just sold in POS — identifying the row by the
   // unique SKU (not the shared name) so this checks this run's actual row.
   await expect(window.locator('tr', { hasText: sku })).toContainText('4');
+
+  // Confirms the full add-customer → attach-at-checkout → verify-history
+  // loop, not just that each piece renders in isolation. customerName is
+  // per-run-unique, so unlike the Reports top-products check, an exact
+  // assertion here is safe even across repeated local runs.
+  await window.getByRole('link', { name: 'Customers' }).click();
+  await window.getByText(customerName).click();
+  await expect(window.getByText('1,500 RWF')).toBeVisible({ timeout: 10_000 });
 
   await app.close();
 });

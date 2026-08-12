@@ -11,6 +11,7 @@ import { AdminPage } from '../modules/admin/AdminPage';
 import { ProductsPage } from '../modules/inventory/ProductsPage';
 import { PosPage } from '../modules/pos/PosPage';
 import { ReportsPage } from '../modules/reports/ReportsPage';
+import { CustomersPage } from '../modules/crm/CustomersPage';
 
 export function App() {
   const [isReady, setIsReady] = useState(false);
@@ -50,6 +51,7 @@ export function App() {
                 <Route path="inventory" element={<ProductsPage />} />
                 <Route path="pos" element={<PosPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="crm" element={<CustomersPage />} />
               </Route>
             </Routes>
           </HashRouter>

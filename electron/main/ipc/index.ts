@@ -5,6 +5,9 @@ import {
   type BackupRecord,
   type BackupResult,
   type CreateSaleInput,
+  type Customer,
+  type CustomerInput,
+  type CustomerResult,
   type DatabaseHealthResult,
   type LicenseInfo,
   type ManagedUser,
@@ -61,6 +64,12 @@ import {
   setUserRole,
 } from '../services/core/users';
 import { getSalesSummary, getTopProducts } from '../services/core/reports';
+import {
+  createCustomer,
+  listCustomers,
+  setCustomerActive,
+  updateCustomer,
+} from '../services/core/customers';
 
 export function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getAppVersion, () => app.getVersion());
@@ -163,7 +172,9 @@ export function registerIpcHandlers(): void {
     createSale(input),
   );
 
-  ipcMain.handle(IPC_CHANNELS.listSales, (): Promise<Sale[]> => listSales());
+  ipcMain.handle(IPC_CHANNELS.listSales, (_event, customerId?: string): Promise<Sale[]> =>
+    listSales(customerId),
+  );
 
   ipcMain.handle(IPC_CHANNELS.getSale, (_event, id: string): Promise<Sale | null> => getSale(id));
 
@@ -199,5 +210,27 @@ export function registerIpcHandlers(): void {
     IPC_CHANNELS.getTopProducts,
     (_event, range: ReportRange, limit?: number): Promise<TopProduct[]> =>
       getTopProducts(range, limit),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.listCustomers,
+    (_event, includeInactive?: boolean): Promise<Customer[]> => listCustomers(includeInactive),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.createCustomer,
+    (_event, input: CustomerInput): Promise<CustomerResult> => createCustomer(input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.updateCustomer,
+    (_event, id: string, input: Partial<CustomerInput>): Promise<CustomerResult> =>
+      updateCustomer(id, input),
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.setCustomerActive,
+    (_event, id: string, isActive: boolean): Promise<CustomerResult> =>
+      setCustomerActive(id, isActive),
   );
 }

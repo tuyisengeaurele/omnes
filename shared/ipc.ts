@@ -35,6 +35,10 @@ export const IPC_CHANNELS = {
   resetUserPassword: 'user:reset-password',
   getSalesSummary: 'reports:get-summary',
   getTopProducts: 'reports:get-top-products',
+  listCustomers: 'customer:list',
+  createCustomer: 'customer:create',
+  updateCustomer: 'customer:update',
+  setCustomerActive: 'customer:set-active',
 } as const;
 
 export interface DatabaseHealthResult {
@@ -142,6 +146,8 @@ export interface SaleItem {
 export interface Sale {
   id: string;
   cashierUsername: string | null;
+  customerId: string | null;
+  customerName: string | null;
   paymentMethod: PaymentMethod;
   amountTendered: number | null;
   changeGiven: number | null;
@@ -159,6 +165,7 @@ export interface CreateSaleInput {
   items: SaleLineInput[];
   paymentMethod: PaymentMethod;
   amountTendered: number | null;
+  customerId?: string | null;
 }
 
 export interface SaleResult {
@@ -197,6 +204,30 @@ export interface TopProduct {
   revenue: number;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomerInput {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+}
+
+export interface CustomerResult {
+  success: boolean;
+  message: string;
+  customer: Customer | null;
+}
+
 export interface AppApi {
   getAppVersion: () => Promise<string>;
   checkDatabaseHealth: () => Promise<DatabaseHealthResult>;
@@ -225,7 +256,7 @@ export interface AppApi {
   updateProduct: (id: string, input: Partial<ProductInput>) => Promise<ProductResult>;
   setProductActive: (id: string, isActive: boolean) => Promise<ProductResult>;
   createSale: (input: CreateSaleInput) => Promise<SaleResult>;
-  listSales: () => Promise<Sale[]>;
+  listSales: (customerId?: string) => Promise<Sale[]>;
   getSale: (id: string) => Promise<Sale | null>;
   listUsers: () => Promise<ManagedUser[]>;
   createUser: (username: string, password: string, role: Role) => Promise<UserResult>;
@@ -234,4 +265,8 @@ export interface AppApi {
   resetUserPassword: (id: string, newPassword: string) => Promise<UserResult>;
   getSalesSummary: (range: ReportRange) => Promise<SalesSummary>;
   getTopProducts: (range: ReportRange, limit?: number) => Promise<TopProduct[]>;
+  listCustomers: (includeInactive?: boolean) => Promise<Customer[]>;
+  createCustomer: (input: CustomerInput) => Promise<CustomerResult>;
+  updateCustomer: (id: string, input: Partial<CustomerInput>) => Promise<CustomerResult>;
+  setCustomerActive: (id: string, isActive: boolean) => Promise<CustomerResult>;
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { PaymentMethod, Sale } from '@shared/ipc';
+import type { Customer, PaymentMethod, Sale } from '@shared/ipc';
 import type { CartLine } from './Cart';
+import { CustomerPicker } from './CustomerPicker';
 import styles from './CheckoutPanel.module.css';
 
 interface CheckoutPanelProps {
@@ -11,6 +12,7 @@ interface CheckoutPanelProps {
 
 export function CheckoutPanel({ lines, onCompleted }: CheckoutPanelProps) {
   const { t } = useTranslation();
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [amountTendered, setAmountTendered] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -30,11 +32,13 @@ export function CheckoutPanel({ lines, onCompleted }: CheckoutPanelProps) {
       items: lines.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
       paymentMethod,
       amountTendered: paymentMethod === 'CASH' ? tenderedValue : null,
+      customerId: customer?.id ?? null,
     });
     setIsSubmitting(false);
 
     if (result?.success && result.sale) {
       setAmountTendered('');
+      setCustomer(null);
       onCompleted(result.sale);
     } else {
       setError(result?.message ?? t('pos.checkoutError'));
@@ -43,6 +47,10 @@ export function CheckoutPanel({ lines, onCompleted }: CheckoutPanelProps) {
 
   return (
     <div className={styles.panel}>
+      <label className={styles.field}>
+        <span>{t('pos.customer')}</span>
+        <CustomerPicker selected={customer} onSelect={setCustomer} />
+      </label>
       <div className={styles.methodToggle}>
         <button
           type="button"
