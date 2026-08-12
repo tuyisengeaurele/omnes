@@ -625,6 +625,56 @@ sales under the same `"E2E Test Widget"` product name; since
 would only hold on a clean database and would flake on a second
 same-day local run.
 
+## CRM
+
+CRM is the master brief's last remaining business module — Core, POS,
+Inventory, Reports, and Administration (Backup + User Management) were
+all already built. `Customer` (`prisma/schema.prisma`) follows
+`Product`'s soft-delete shape (`isActive`, no hard delete), but
+deliberately has **no** uniqueness constraint on `phone` or `email` —
+unlike `Product.sku`/`barcode`, a small shop's real customer data has
+blanks and occasional duplicates, and inventing a uniqueness rule nobody
+asked for would just create spurious rejection errors. `electron/main/
+services/core/customers.ts` follows `products.ts`'s exact shape
+(`CustomerResult` mirrors `ProductResult`) and, like POS/Inventory
+today, has **no role gate** — unlike Reports' ADMIN/MANAGER
+restriction, a CASHIER session legitimately needs to add and search
+customers mid-checkout.
+
+`Sale` gained two nullable fields, `customerId`/`customerName`, mirroring
+`cashierId`/`cashierUsername`'s exact shape and reasoning: `customerName`
+is a snapshot taken at sale time, so a later customer rename never
+rewrites a historical receipt, and the customer is resolved _inside_
+`createSale`'s existing `Serializable` transaction (not before it
+starts) — the same TOCTOU-avoidance `cashierId` already established,
+now reused rather than re-derived. A `customerId` that no longer
+resolves (deleted, or a stale reference from a restore) degrades the
+sale to unattributed rather than failing checkout, identical to how a
+stale `cashierId` already degrades. `listSales()` gained an optional
+`customerId` filter, powering `CustomerDetail.tsx`'s purchase-history
+view — backward compatible, since existing callers that omit the
+argument are unaffected.
+
+Two already-shipped POS files were modified, not just new files added:
+`CheckoutPanel.tsx` now renders the new `CustomerPicker.tsx` (an
+optional, in-memory-filtered search-and-select, matching
+`ProductSearch.tsx`'s pattern at the same "a shop's list fits in
+memory" scale) and passes the selected `customerId` to `createSale`;
+`ReceiptView.tsx` shows the customer's name on the receipt when one was
+attached, reusing the existing `.cashier` CSS class (a plain
+centered-meta-text style, not semantically tied to the word "cashier").
+This is the first sub-project since POS Sale Flow to touch either file.
+
+The e2e suite's CRM check adds a real customer, selects them during the
+existing POS checkout flow, and then verifies the purchase appears on
+that customer's detail page — unlike Reports' loose top-products
+assertion, this one asserts an exact total (`'1,500 RWF'`), since
+`customerName` is generated per-run-unique
+(`` `E2E Customer ${Date.now()}` ``) and each run's customer has no
+prior purchase history to accumulate against, sidestepping the
+same-day-repeated-run flakiness Reports' shared product name was
+exposed to.
+
 ## IPC contract
 
 Types shared between main and renderer live in `shared/`, so both sides import from one
