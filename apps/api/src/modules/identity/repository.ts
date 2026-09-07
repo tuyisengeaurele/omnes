@@ -95,3 +95,34 @@ export async function getRolesForUser(userId: string): Promise<RoleName[]> {
   });
   return rows.map((r) => r.role);
 }
+
+/**
+ * The merchant a user owns, if any. Catalog's RBAC checks call this to
+ * decide whether a MERCHANT_OWNER actor may write to a specific merchant -
+ * the role alone only proves they own *some* merchant, not this one.
+ */
+export async function getMerchantIdForOwner(userId: string): Promise<string | null> {
+  const profile = await getDb().merchantProfile.findUnique({
+    where: { userId },
+    select: { merchantId: true },
+  });
+  return profile?.merchantId ?? null;
+}
+
+/**
+ * Links an already-provisioned merchant to its owner: a MerchantProfile row
+ * and the MERCHANT_OWNER role, in one transaction. Called by catalog's
+ * merchant-creation flow, which is why it lives on the identity side of the
+ * module boundary - MerchantProfile is identity-owned data even though the
+ * Merchant row itself belongs to catalog.
+ */
+export async function linkMerchantOwner(userId: string, merchantId: string): Promise<void> {
+  await getDb().$transaction([
+    getDb().merchantProfile.create({
+      data: { userId, merchantId, status: 'APPROVED' },
+    }),
+    getDb().userRole.create({
+      data: { userId, role: 'MERCHANT_OWNER' },
+    }),
+  ]);
+}
