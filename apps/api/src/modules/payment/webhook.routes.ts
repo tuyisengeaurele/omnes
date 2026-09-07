@@ -23,7 +23,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { paymentWebhookSchema } from '@omnes/contracts';
 import { forbidden, notFound } from '../../platform/errors.js';
 import { omitUndefined } from '../../platform/objectUtils.js';
-import { processPaymentWebhook } from './webhookProcessor.js';
+import type { WebhookProcessor } from './webhookProcessor.js';
 
 const WEBHOOK_SECRET_HEADER_NAME = 'x-webhook-secret';
 
@@ -34,7 +34,10 @@ function safeEqual(a: string, b: string): boolean {
   return timingSafeEqual(bufA, bufB);
 }
 
-export function createPaymentWebhookRouter(webhookSecret: string): Router {
+export function createPaymentWebhookRouter(
+  webhookProcessor: WebhookProcessor,
+  webhookSecret: string
+): Router {
   const router = Router();
 
   router.post('/mock', async (req, res) => {
@@ -44,7 +47,7 @@ export function createPaymentWebhookRouter(webhookSecret: string): Router {
     }
 
     const input = paymentWebhookSchema.parse(req.body);
-    const outcome = await processPaymentWebhook(omitUndefined(input));
+    const outcome = await webhookProcessor.processPaymentWebhook(omitUndefined(input));
 
     if (!outcome.applied && outcome.reason === 'NOT_FOUND') {
       throw notFound('PAYMENT_INTENT_NOT_FOUND', 'No payment intent matches this providerRef.');

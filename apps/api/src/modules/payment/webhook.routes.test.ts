@@ -271,7 +271,9 @@ describe('payment webhook route', () => {
 
     const db = getDb();
     const order = await db.order.findUniqueOrThrow({ where: { id: orderId } });
-    expect(order.status).toBe('PAID');
+    // PAID immediately, then the automatic system follow-up to
+    // MERCHANT_PENDING - see webhookProcessor.ts.
+    expect(order.status).toBe('MERCHANT_PENDING');
 
     const paymentTxns = await db.ledgerTxn.findMany({
       where: { reference: `order-payment:${orderId}` },
