@@ -29,10 +29,27 @@ export interface CartRow {
 }
 
 /**
+ * Read-only: the customer's live (non-expired) cart for this merchant, or
+ * null if none exists yet or the existing one has expired. Never creates
+ * anything - a GET or a clear on a cart that was never started has nothing
+ * to do, and should not write a row just because it was asked to look.
+ */
+export async function findActiveCart(userId: string, merchantId: string): Promise<CartRow | null> {
+  const cart = await getDb().cart.findUnique({
+    where: { userId_merchantId: { userId, merchantId } },
+    include: { items: true },
+  });
+  if (!cart || cart.expiresAt <= new Date()) return null;
+  return cart;
+}
+
+/**
  * Fetches the customer's cart for this merchant, creating one if none
  * exists, and transparently replacing it if the existing one has expired.
  * A caller never has to think about cart lifecycle - it always gets back a
- * live, non-expired cart.
+ * live, non-expired cart. Only ever called from a mutation that is about to
+ * add a real item with a real price and currency - see findActiveCart for
+ * the read-only case, which must not create a cart with a guessed currency.
  */
 export async function getOrCreateActiveCart(
   userId: string,
@@ -151,4 +168,15 @@ export async function findActiveFeeSchedule(
     orderBy: { effectiveFrom: 'desc' },
     select: { baseFeeMinor: true, perKmFeeMinor: true, serviceFeeBps: true },
   });
+}
+
+/**
+ * A city's currency. City is shared reference data rather than something
+ * catalog owns exclusively, so this reads it directly rather than routing
+ * through another module - used only to report a currency on an empty cart
+ * view, where no product row exists yet to read one from instead.
+ */
+export async function findCityCurrency(cityId: string): Promise<string | null> {
+  const city = await getDb().city.findUnique({ where: { id: cityId }, select: { currency: true } });
+  return city?.currency ?? null;
 }
