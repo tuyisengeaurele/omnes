@@ -193,6 +193,7 @@ export function createCatalogService(geo: GeoPort) {
     deleteCategory: repo.deleteCategory,
     createProduct: repo.createProduct,
     findProductOwner: repo.findProductOwner,
+    findProductById: repo.findProductById,
     updateProduct: repo.updateProduct,
     deleteProduct: repo.deleteProduct,
   };

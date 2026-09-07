@@ -9,3 +9,9 @@
 
 export { createCatalogService, type CatalogService } from './service.js';
 export { createCatalogRouter } from './routes.js';
+export {
+  findProductById,
+  findMerchantById,
+  type ProductRow,
+  type MerchantRow,
+} from './repository.js';
