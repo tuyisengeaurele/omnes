@@ -81,6 +81,14 @@ export type VerifyOtpOutcome =
       reason: 'NOT_FOUND' | 'EXPIRED' | 'ALREADY_CONSUMED' | 'MAX_ATTEMPTS_EXCEEDED' | 'INCORRECT_CODE';
     };
 
+/**
+ * Derived from VerifyOtpOutcome rather than redeclared, so a new failure
+ * reason added there is automatically available to callers here - a route
+ * or the auth service that wants to report the specific reason to the user
+ * cannot silently fall out of sync with what verify() can actually return.
+ */
+export type VerifyOtpFailureReason = Extract<VerifyOtpOutcome, { ok: false }>['reason'];
+
 export function hashOtpCode(code: string, pepper: string): string {
   return createHmac('sha256', pepper).update(code).digest('hex');
 }
