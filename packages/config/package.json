@@ -7,9 +7,12 @@
   "exports": {
     "./tsconfig/base.json": "./tsconfig/base.json",
     "./tsconfig/node.json": "./tsconfig/node.json",
-    "./tsconfig/react.json": "./tsconfig/react.json"
+    "./tsconfig/react.json": "./tsconfig/react.json",
+    "./tailwind/preset": "./tailwind/preset.js",
+    "./tailwind/tokens": "./tailwind/tokens.js"
   },
   "files": [
-    "tsconfig"
+    "tsconfig",
+    "tailwind"
   ]
 }
