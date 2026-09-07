@@ -48,9 +48,13 @@ function toDto(row: MerchantRow, distanceMeters?: number): MerchantSummaryDto {
   return dto;
 }
 
+export type MerchantSort = 'distance' | 'rating' | 'eta' | 'recent';
+
 export interface ListMerchantsParams {
   cityId: string;
   vertical?: Vertical;
+  minRating?: number;
+  sortBy?: MerchantSort;
   latitude?: number;
   longitude?: number;
   radiusM?: number;
@@ -75,9 +79,16 @@ export function createCatalogService(geo: GeoPort) {
    */
   async function listMerchants(params: ListMerchantsParams): Promise<Page<MerchantSummaryDto>> {
     if (params.latitude === undefined || params.longitude === undefined) {
+      // 'distance' has no meaning without a near point; fall back to
+      // 'recent' rather than reject the combination outright, since a
+      // frontend's default sort choice should not have to know whether the
+      // user has shared a location yet.
+      const sortBy = params.sortBy === 'distance' || !params.sortBy ? 'recent' : params.sortBy;
       const page = await repo.findMerchantsPage({
         cityId: params.cityId,
         ...(params.vertical ? { vertical: params.vertical } : {}),
+        ...(params.minRating !== undefined ? { minRating: params.minRating } : {}),
+        sortBy,
         ...(params.cursor ? { cursor: params.cursor } : {}),
         limit: params.limit,
       });
@@ -91,14 +102,29 @@ export function createCatalogService(geo: GeoPort) {
     const candidates = await repo.findMerchantsInBox({
       cityId: params.cityId,
       ...(params.vertical ? { vertical: params.vertical } : {}),
+      ...(params.minRating !== undefined ? { minRating: params.minRating } : {}),
       box,
       maxCandidates: GEO_CANDIDATE_CAP,
     });
 
     const withDistance = candidates
       .map((row) => ({ row, distanceMeters: geo.distanceMeters(center, row) }))
-      .filter((c) => c.distanceMeters <= radiusM)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+      .filter((c) => c.distanceMeters <= radiusM);
+
+    // Distance is always computed and returned once a near point is given,
+    // even when the page is ordered by rating or ETA instead - a frontend
+    // showing "12 min away" alongside a rating-sorted list still needs the
+    // number, it just is not what determined the order.
+    switch (params.sortBy) {
+      case 'rating':
+        withDistance.sort((a, b) => b.row.rating - a.row.rating);
+        break;
+      case 'eta':
+        withDistance.sort((a, b) => a.row.prepTimeMinutes - b.row.prepTimeMinutes);
+        break;
+      default:
+        withDistance.sort((a, b) => a.distanceMeters - b.distanceMeters);
+    }
 
     const offset = params.cursor ? Number.parseInt(params.cursor, 10) : 0;
     const validOffset = Number.isInteger(offset) && offset >= 0 ? offset : 0;
