@@ -15,3 +15,11 @@ export {
 } from './pricing.js';
 export { createCartService, type CartService, type CartView } from './cart.service.js';
 export { createCartRouter } from './cart.routes.js';
+export {
+  createCheckoutService,
+  type CheckoutService,
+  type CatalogLookup,
+  type CheckoutPort,
+  type CheckoutOutcome,
+} from './checkout.service.js';
+export { createCheckoutRouter } from './checkout.routes.js';

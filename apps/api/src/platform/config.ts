@@ -66,6 +66,18 @@ const envSchema = z.object({
   OTP_REQUESTS_PER_HOUR: z.coerce.number().int().positive().default(5),
 
   PAYMENT_PROVIDER: z.enum(['mock', 'mtn_momo', 'airtel']).default('mock'),
+  // How long a payment may sit PENDING before it is treated as expired.
+  // Checked lazily wherever a payment's status is read - see
+  // modules/payment/checkoutPayment.repository.ts's applyTimeoutIfExpired -
+  // rather than by a background job, since nothing else in this deployable
+  // runs on a schedule yet.
+  PAYMENT_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(180),
+  // Shared secret the payment webhook route requires in a header before it
+  // will process a callback. A real provider's adapter would verify an
+  // HMAC signature instead; this is the same idea in the simplest form
+  // that still stops anyone who does not know the secret from forging a
+  // "payment succeeded" call against a real order.
+  PAYMENT_WEBHOOK_SECRET: secretSchema,
   SMS_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   MAPS_PROVIDER: z.enum(['osm', 'mapbox', 'google']).default('osm'),
   REALTIME_TRANSPORT: z.enum(['sse', 'websocket']).default('sse'),

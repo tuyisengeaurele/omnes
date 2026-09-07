@@ -4,6 +4,7 @@ import { ConfigError, loadConfig } from './config.js';
 const SECRET_A = 'a'.repeat(32);
 const SECRET_B = 'b'.repeat(32);
 const SECRET_C = 'c'.repeat(32);
+const SECRET_D = 'd'.repeat(32);
 
 function validEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): NodeJS.ProcessEnv {
   return {
@@ -11,6 +12,7 @@ function validEnv(overrides: Partial<NodeJS.ProcessEnv> = {}): NodeJS.ProcessEnv
     JWT_ACCESS_SECRET: SECRET_A,
     CSRF_SECRET: SECRET_B,
     OTP_PEPPER: SECRET_C,
+    PAYMENT_WEBHOOK_SECRET: SECRET_D,
     CORS_ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:5174',
     ...overrides,
   };

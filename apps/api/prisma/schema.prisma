@@ -786,7 +786,11 @@ model PaymentIntent {
   amountMinor    BigInt
   currency       String
   status         PaymentStatus @default(PENDING)
-  providerRef    String?
+  // Unique once set, so a webhook can look a payment up by it unambiguously.
+  // Nullable and unique coexist correctly in Postgres: multiple NULLs (a
+  // payment intent whose initiate() call has not returned yet) are never
+  // considered duplicates of each other.
+  providerRef    String?       @unique
   idempotencyKey String        @unique
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

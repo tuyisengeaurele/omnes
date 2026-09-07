@@ -19,6 +19,8 @@ import { errorHandler, notFoundHandler } from './platform/errorHandler.js';
 import type { SmsPort } from './adapters/sms/index.js';
 import { mockSmsAdapter } from './adapters/sms/mockAdapter.js';
 import { haversineGeoAdapter } from './adapters/geo/haversineAdapter.js';
+import type { PaymentPort } from './adapters/payment/index.js';
+import { mockMomoAdapter } from './adapters/payment/mockMomoAdapter.js';
 import {
   createAuthService,
   createIdentityRouter,
@@ -33,13 +35,21 @@ import {
   findMerchantById,
   findProductById,
 } from './modules/catalog/index.js';
-import { createCartRouter, createCartService } from './modules/order/index.js';
+import {
+  createCartRouter,
+  createCartService,
+  createCheckoutRouter,
+  createCheckoutService,
+} from './modules/order/index.js';
+import { createPaymentWebhookRouter } from './modules/payment/index.js';
 
 export interface AppDeps {
   config: Config;
   logger: Logger;
   /** Defaults to the mock adapter. Tests substitute a spy to capture sent codes. */
   smsPort?: SmsPort;
+  /** Defaults to the mock adapter. Tests substitute a spy to force specific outcomes. */
+  paymentPort?: PaymentPort;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -76,6 +86,12 @@ export function createApp(deps: AppDeps): Express {
 
   const catalogService = createCatalogService(haversineGeoAdapter);
   const cartService = createCartService({ findProductById, findMerchantById });
+  const checkoutService = createCheckoutService({
+    catalog: { findMerchantById },
+    cart: cartService,
+    geo: haversineGeoAdapter,
+    payment: deps.paymentPort ?? mockMomoAdapter,
+  });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
@@ -84,6 +100,8 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/auth', createIdentityRouter(authService, tokenService, deps.config));
   app.use('/api/catalog', createCatalogRouter(catalogService, tokenService));
   app.use('/api/cart', createCartRouter(cartService, tokenService));
+  app.use('/api/checkout', createCheckoutRouter(checkoutService, tokenService));
+  app.use('/api/payments/webhooks', createPaymentWebhookRouter(deps.config.PAYMENT_WEBHOOK_SECRET));
 
   app.use(notFoundHandler);
   app.use(errorHandler);

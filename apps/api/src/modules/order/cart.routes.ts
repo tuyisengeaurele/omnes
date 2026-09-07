@@ -10,6 +10,7 @@
 import { Router } from 'express';
 import { addCartItemSchema, updateCartItemQuantitySchema } from '@omnes/contracts';
 import { requireAuth, type TokenService } from '../identity/index.js';
+import { csrfProtection } from '../../platform/csrf.js';
 import { badRequest, notFound, unauthorized } from '../../platform/errors.js';
 import { omitUndefined } from '../../platform/objectUtils.js';
 import type { CartService, CartView } from './cart.service.js';
@@ -61,6 +62,7 @@ export function createCartRouter(cart: CartService, tokenService: TokenService):
   const router = Router();
   const requireCustomerAuth = requireAuth('customer', tokenService);
   router.use(requireCustomerAuth);
+  router.use(csrfProtection('customer'));
 
   router.get('/:merchantId', async (req, res) => {
     const actor = req.actor;
