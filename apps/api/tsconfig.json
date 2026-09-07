@@ -1,10 +1,16 @@
 {
   "extends": "@omnes/config/tsconfig/node.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    // No baseUrl: it is deprecated as of TypeScript 6 and is being removed in
+    // 7. "paths" alone resolves relative to this file without it.
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
+    // rootDir/outDir are intentionally unset here. This app's inputs span
+    // both src/ and prisma/seed.ts, which are siblings, so there is no
+    // single rootDir that contains both without also being their common
+    // parent. Revisit once a real build pipeline needs a specific dist
+    // layout; --noEmit typechecking does not care.
   },
   "include": ["src", "prisma/seed.ts"]
 }
