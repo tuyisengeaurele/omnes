@@ -72,17 +72,33 @@ function toMerchantRow(row: RawMerchant): MerchantRow {
   };
 }
 
+export type MerchantOrderBy = 'rating' | 'eta' | 'recent';
+
 export interface ListMerchantsPage {
   cityId: string;
   vertical?: Vertical;
+  minRating?: number;
+  sortBy?: MerchantOrderBy;
   cursor?: string;
   limit: number;
 }
 
 /**
- * Standard, non-geo listing: DB-level cursor pagination ordered by
- * (createdAt desc, id desc) so the order is stable even when two merchants
- * share a createdAt timestamp.
+ * Same query, ordered differently. id is always the tiebreak, both to keep
+ * the order stable when two merchants tie on the primary key and because
+ * Prisma's cursor pagination resolves the cursor row by id and continues
+ * from its position in exactly this sequence - the tiebreak has to be
+ * present and consistent for that to paginate correctly.
+ */
+const MERCHANT_ORDER_BY = {
+  rating: [{ rating: 'desc' }, { id: 'desc' }],
+  eta: [{ prepTimeMinutes: 'asc' }, { id: 'desc' }],
+  recent: [{ createdAt: 'desc' }, { id: 'desc' }],
+} as const;
+
+/**
+ * Standard, non-geo listing: DB-level cursor pagination, ordered by
+ * whichever of rating, ETA (prepTimeMinutes), or recency was requested.
  */
 export async function findMerchantsPage(params: ListMerchantsPage): Promise<{
   items: MerchantRow[];
@@ -92,12 +108,13 @@ export async function findMerchantsPage(params: ListMerchantsPage): Promise<{
     cityId: params.cityId,
     status: 'ACTIVE' as const,
     ...(params.vertical ? { vertical: params.vertical } : {}),
+    ...(params.minRating !== undefined ? { rating: { gte: params.minRating } } : {}),
   };
 
   const rows = await getDb().merchant.findMany({
     where,
     select: MERCHANT_SELECT,
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    orderBy: [...MERCHANT_ORDER_BY[params.sortBy ?? 'recent']],
     take: params.limit + 1,
     ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
   });
@@ -122,6 +139,7 @@ export async function findMerchantsPage(params: ListMerchantsPage): Promise<{
 export async function findMerchantsInBox(params: {
   cityId: string;
   vertical?: Vertical;
+  minRating?: number;
   box: BoundingBox;
   maxCandidates: number;
 }): Promise<MerchantRow[]> {
@@ -130,6 +148,7 @@ export async function findMerchantsInBox(params: {
       cityId: params.cityId,
       status: 'ACTIVE',
       ...(params.vertical ? { vertical: params.vertical } : {}),
+      ...(params.minRating !== undefined ? { rating: { gte: params.minRating } } : {}),
       latitude: { gte: params.box.minLatitude, lte: params.box.maxLatitude },
       longitude: { gte: params.box.minLongitude, lte: params.box.maxLongitude },
     },
