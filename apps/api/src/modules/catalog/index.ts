@@ -7,4 +7,5 @@
  * boundaries/element-types rule in the root eslint config.
  */
 
-export {};
+export { createCatalogService, type CatalogService } from './service.js';
+export { createCatalogRouter } from './routes.js';

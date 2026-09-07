@@ -14,4 +14,11 @@ export { createOtpService, type OtpService } from './otp.service.js';
 export { createTokenService, type TokenService } from './token.service.js';
 export { prismaOtpStore } from './otp.store.js';
 export { prismaRefreshTokenStore } from './token.store.js';
-export { findUserByPhone, findUserById, getRolesForUser, type UserRecord } from './repository.js';
+export {
+  findUserByPhone,
+  findUserById,
+  getRolesForUser,
+  getMerchantIdForOwner,
+  linkMerchantOwner,
+  type UserRecord,
+} from './repository.js';

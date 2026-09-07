@@ -18,6 +18,7 @@ import { generalRateLimiter } from './platform/rateLimit.js';
 import { errorHandler, notFoundHandler } from './platform/errorHandler.js';
 import type { SmsPort } from './adapters/sms/index.js';
 import { mockSmsAdapter } from './adapters/sms/mockAdapter.js';
+import { haversineGeoAdapter } from './adapters/geo/haversineAdapter.js';
 import {
   createAuthService,
   createIdentityRouter,
@@ -26,6 +27,7 @@ import {
   prismaOtpStore,
   prismaRefreshTokenStore,
 } from './modules/identity/index.js';
+import { createCatalogRouter, createCatalogService } from './modules/catalog/index.js';
 
 export interface AppDeps {
   config: Config;
@@ -66,11 +68,14 @@ export function createApp(deps: AppDeps): Express {
     smsPort: deps.smsPort ?? mockSmsAdapter,
   });
 
+  const catalogService = createCatalogService(haversineGeoAdapter);
+
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
 
   app.use('/api/auth', createIdentityRouter(authService, tokenService, deps.config));
+  app.use('/api/catalog', createCatalogRouter(catalogService, tokenService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
