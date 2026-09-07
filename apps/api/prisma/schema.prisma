@@ -1,0 +1,195 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Identity
+// -----------------------------------------------------------------------------
+// See docs/build-plan.md section 4. OTP codes are hashed at rest and never
+// logged. National ID numbers on VerificationDoc are handled at the
+// application layer (column-level encryption), not by the schema itself.
+
+enum RoleName {
+  CUSTOMER
+  DRIVER
+  MERCHANT_OWNER
+  OPS
+  SUPPORT
+  FINANCE
+  SUPER_ADMIN
+}
+
+enum CredentialType {
+  PHONE_OTP
+  EMAIL_PASSWORD
+  GOOGLE
+  APPLE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum VehicleType {
+  MOTO
+  CAR
+  VAN
+  BICYCLE
+}
+
+enum VerificationOwnerType {
+  DRIVER
+  MERCHANT
+}
+
+enum VerificationDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String     @id @default(uuid())
+  phoneE164   String?    @unique
+  email       String?    @unique
+  displayName String
+  locale      String     @default("en")
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  credentials     Credential[]
+  refreshTokens   RefreshToken[]
+  roles           UserRole[]
+  addresses       Address[]
+  merchantProfile MerchantProfile?
+  driverProfile   DriverProfile?
+
+  @@index([status])
+  @@map("users")
+}
+
+model Credential {
+  id         String         @id @default(uuid())
+  userId     String
+  type       CredentialType
+  secretHash String?
+  verifiedAt DateTime?
+  createdAt  DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("credentials")
+}
+
+// Never logged, hashed at rest. purpose distinguishes registration, login and
+// account-recovery challenges so a code for one cannot be replayed for another.
+model OtpChallenge {
+  id         String    @id @default(uuid())
+  phoneE164  String
+  codeHash   String
+  purpose    String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phoneE164, expiresAt])
+  @@map("otp_challenges")
+}
+
+// tokenHash is the lookup key. familyId ties every rotation of one login
+// together so reuse of an already-rotated token revokes the whole family.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  familyId  String
+  audience  String
+  expiresAt DateTime
+  rotatedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, familyId])
+  @@map("refresh_tokens")
+}
+
+model UserRole {
+  id     String   @id @default(uuid())
+  userId String
+  role   RoleName
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model MerchantProfile {
+  id         String         @id @default(uuid())
+  userId     String         @unique
+  merchantId String         @unique
+  status     ApprovalStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("merchant_profiles")
+}
+
+model DriverProfile {
+  id          String         @id @default(uuid())
+  userId      String         @unique
+  vehicleType VehicleType
+  status      ApprovalStatus @default(PENDING)
+  rating      Decimal        @default(5.0) @db.Decimal(3, 2)
+  standing    String         @default("GOOD")
+  createdAt   DateTime       @default(now())
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability DriverAvailability?
+  locations    DriverLocation[]
+  offers       DispatchOffer[]
+  assignments  Assignment[]
+
+  @@map("driver_profiles")
+}
+
+// storageKey points at the object store. The file itself never touches the
+// database, and national ID numbers referenced here are encrypted at the
+// application layer before being persisted anywhere.
+model VerificationDoc {
+  id         String                @id @default(uuid())
+  ownerType  VerificationOwnerType
+  ownerId    String
+  docType    String
+  storageKey String
+  reviewedBy String?
+  reviewedAt DateTime?
+  decision   VerificationDecision  @default(PENDING)
+  createdAt  DateTime              @default(now())
+
+  @@index([ownerType, ownerId])
+  @@map("verification_docs")
+}
+
