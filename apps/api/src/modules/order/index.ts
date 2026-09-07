@@ -7,4 +7,11 @@
  * boundaries/element-types rule in the root eslint config.
  */
 
-export {};
+export {
+  priceCart,
+  type PriceBreakdown,
+  type PricingLineItem,
+  type FeeScheduleInput,
+} from './pricing.js';
+export { createCartService, type CartService, type CartView } from './cart.service.js';
+export { createCartRouter } from './cart.routes.js';

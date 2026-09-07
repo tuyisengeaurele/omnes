@@ -405,6 +405,30 @@ export async function findProductOwner(productId: string): Promise<string | null
   return row?.merchantId ?? null;
 }
 
+/**
+ * The current price, availability, and stock for one product. This is what
+ * the order module calls to revalidate a cart line against - the cart
+ * never trusts a client-supplied price or a stale snapshot from when the
+ * item was added.
+ */
+export async function findProductById(productId: string): Promise<ProductRow | null> {
+  return getDb().product.findUnique({
+    where: { id: productId },
+    select: {
+      id: true,
+      merchantId: true,
+      categoryId: true,
+      name: true,
+      description: true,
+      priceMinor: true,
+      currency: true,
+      imageKey: true,
+      isAvailable: true,
+      stockCount: true,
+    },
+  });
+}
+
 export async function updateProduct(
   id: string,
   input: {
