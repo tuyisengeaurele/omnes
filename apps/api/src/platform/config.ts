@@ -82,6 +82,19 @@ const envSchema = z.object({
   MAPS_PROVIDER: z.enum(['osm', 'mapbox', 'google']).default('osm'),
   REALTIME_TRANSPORT: z.enum(['sse', 'websocket']).default('sse'),
 
+  // How long a driver has to accept or decline one offer before it is
+  // treated as a timeout and the next candidate gets a turn. Checked
+  // lazily wherever dispatch state is read - see
+  // modules/dispatch/dispatch.service.ts - for the same reason as
+  // PAYMENT_TIMEOUT_SECONDS above.
+  DISPATCH_OFFER_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(30),
+  // The search radius tried first, and the wider radius escalated to per
+  // FR-DISP-004 if nothing in the first radius accepts. Widening only once
+  // rather than repeatedly is an MVP scope cut, not a hard limit of the
+  // design - see dispatch.service.ts.
+  DISPATCH_INITIAL_RADIUS_METERS: z.coerce.number().int().positive().default(3000),
+  DISPATCH_ESCALATED_RADIUS_METERS: z.coerce.number().int().positive().default(8000),
+
   RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().positive().default(60),
   RATE_LIMIT_MAX_REQUESTS: z.coerce.number().int().positive().default(120),
   RATE_LIMIT_AUTH_MAX_REQUESTS: z.coerce.number().int().positive().default(10),
