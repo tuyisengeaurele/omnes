@@ -50,6 +50,25 @@ describe('listMerchantsQuerySchema', () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it('accepts a minRating filter and a sortBy', () => {
+    const result = listMerchantsQuerySchema.safeParse({
+      cityId: CITY_ID,
+      minRating: '4',
+      sortBy: 'rating',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a minRating above 5', () => {
+    const result = listMerchantsQuerySchema.safeParse({ cityId: CITY_ID, minRating: '6' });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects an unrecognized sortBy value', () => {
+    const result = listMerchantsQuerySchema.safeParse({ cityId: CITY_ID, sortBy: 'price' });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('searchCatalogQuerySchema', () => {
