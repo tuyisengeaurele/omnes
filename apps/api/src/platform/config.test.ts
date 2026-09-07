@@ -66,9 +66,9 @@ describe('loadConfig', () => {
   });
 
   it('refuses to start in production without COOKIE_SECURE=true', () => {
-    expect(() =>
-      loadConfig(validEnv({ NODE_ENV: 'production', COOKIE_SECURE: 'false' }))
-    ).toThrow(ConfigError);
+    expect(() => loadConfig(validEnv({ NODE_ENV: 'production', COOKIE_SECURE: 'false' }))).toThrow(
+      ConfigError
+    );
   });
 
   it('allows production with COOKIE_SECURE=true and real providers', () => {

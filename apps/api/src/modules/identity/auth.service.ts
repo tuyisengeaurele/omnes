@@ -35,12 +35,10 @@ export interface SessionResult {
 }
 
 export type RequestOtpOutcome =
-  | { ok: true }
-  | { ok: false; reason: 'RATE_LIMITED'; retryAfterSeconds: number };
+  { ok: true } | { ok: false; reason: 'RATE_LIMITED'; retryAfterSeconds: number };
 
 export type RequestRegistrationOtpOutcome =
-  | RequestOtpOutcome
-  | { ok: false; reason: 'ALREADY_REGISTERED' };
+  RequestOtpOutcome | { ok: false; reason: 'ALREADY_REGISTERED' };
 
 export type RequestLoginOtpOutcome = RequestOtpOutcome | { ok: false; reason: 'NOT_REGISTERED' };
 
@@ -66,7 +64,10 @@ export function createAuthService(deps: AuthServiceDeps) {
 
     await deps.smsPort.send({
       to: phoneE164,
-      body: otpMessage(issued.result.code, Math.round((issued.result.expiresAt.getTime() - Date.now()) / 60000)),
+      body: otpMessage(
+        issued.result.code,
+        Math.round((issued.result.expiresAt.getTime() - Date.now()) / 60000)
+      ),
     });
     return { ok: true };
   }
@@ -80,7 +81,10 @@ export function createAuthService(deps: AuthServiceDeps) {
 
     await deps.smsPort.send({
       to: phoneE164,
-      body: otpMessage(issued.result.code, Math.round((issued.result.expiresAt.getTime() - Date.now()) / 60000)),
+      body: otpMessage(
+        issued.result.code,
+        Math.round((issued.result.expiresAt.getTime() - Date.now()) / 60000)
+      ),
     });
     return { ok: true };
   }

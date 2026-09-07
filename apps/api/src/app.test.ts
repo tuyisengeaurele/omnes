@@ -232,10 +232,7 @@ describe('identity routes', () => {
 
     it('rotates the session on refresh', async () => {
       const { agent, csrfToken } = await loggedInAgent();
-      const res = await agent
-        .post('/api/auth/refresh')
-        .set('X-CSRF-Token', csrfToken)
-        .expect(200);
+      const res = await agent.post('/api/auth/refresh').set('X-CSRF-Token', csrfToken).expect(200);
       expect(res.body.csrfToken).toBeTruthy();
       expect(res.body.csrfToken).not.toBe(csrfToken);
 

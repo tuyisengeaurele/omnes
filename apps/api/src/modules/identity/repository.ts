@@ -21,14 +21,28 @@ export interface UserRecord {
 export async function findUserByPhone(phoneE164: string): Promise<UserRecord | null> {
   return getDb().user.findUnique({
     where: { phoneE164 },
-    select: { id: true, phoneE164: true, email: true, displayName: true, locale: true, status: true },
+    select: {
+      id: true,
+      phoneE164: true,
+      email: true,
+      displayName: true,
+      locale: true,
+      status: true,
+    },
   });
 }
 
 export async function findUserById(id: string): Promise<UserRecord | null> {
   return getDb().user.findUnique({
     where: { id },
-    select: { id: true, phoneE164: true, email: true, displayName: true, locale: true, status: true },
+    select: {
+      id: true,
+      phoneE164: true,
+      email: true,
+      displayName: true,
+      locale: true,
+      status: true,
+    },
   });
 }
 

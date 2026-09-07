@@ -18,7 +18,13 @@ interface ErrorResponseBody {
   };
 }
 
-function send(res: Response, status: number, code: string, message: string, details?: Record<string, unknown>): void {
+function send(
+  res: Response,
+  status: number,
+  code: string,
+  message: string,
+  details?: Record<string, unknown>
+): void {
   const body: ErrorResponseBody = { error: { code, message } };
   if (details !== undefined) body.error.details = details;
   res.status(status).json(body);
@@ -41,7 +47,10 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   }
 
   if (err instanceof ZodError) {
-    logger.info({ issues: err.issues, path: req.path, method: req.method }, 'request validation failed');
+    logger.info(
+      { issues: err.issues, path: req.path, method: req.method },
+      'request validation failed'
+    );
     send(res, 400, 'VALIDATION_FAILED', 'The request did not match the expected shape.', {
       issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
     });

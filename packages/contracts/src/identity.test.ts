@@ -42,14 +42,12 @@ describe('registerSchema', () => {
 
 describe('loginSchema', () => {
   it('accepts a valid login payload', () => {
-    expect(
-      loginSchema.safeParse({ phoneE164: '+250780000000', code: '123456' }).success
-    ).toBe(true);
+    expect(loginSchema.safeParse({ phoneE164: '+250780000000', code: '123456' }).success).toBe(
+      true
+    );
   });
 
   it('rejects a code that is too short', () => {
-    expect(loginSchema.safeParse({ phoneE164: '+250780000000', code: '12' }).success).toBe(
-      false
-    );
+    expect(loginSchema.safeParse({ phoneE164: '+250780000000', code: '12' }).success).toBe(false);
   });
 });

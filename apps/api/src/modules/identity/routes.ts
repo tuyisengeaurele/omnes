@@ -8,7 +8,11 @@
 
 import { Router } from 'express';
 import { loginSchema, registerSchema, requestOtpSchema } from '@omnes/contracts';
-import { readRefreshCookie, clearSessionCookies, setSessionCookies } from '../../platform/cookies.js';
+import {
+  readRefreshCookie,
+  clearSessionCookies,
+  setSessionCookies,
+} from '../../platform/cookies.js';
 import { badRequest, tooManyRequests, unauthorized } from '../../platform/errors.js';
 import { authRateLimiter } from '../../platform/rateLimit.js';
 import { csrfProtection } from '../../platform/csrf.js';

@@ -32,7 +32,9 @@ const booleanFromString = z
  * empty string or a copy-pasted "replace-me" placeholder fails startup
  * instead of silently becoming the signing key.
  */
-const secretSchema = z.string().min(32, 'must be at least 32 characters, generate with openssl rand -hex 32');
+const secretSchema = z
+  .string()
+  .min(32, 'must be at least 32 characters, generate with openssl rand -hex 32');
 
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),

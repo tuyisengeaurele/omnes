@@ -11,7 +11,10 @@ import { readAccessCookie } from '../../platform/cookies.js';
 import { unauthorized } from '../../platform/errors.js';
 import type { TokenService } from './token.service.js';
 
-export function requireAuth(audience: Audience, tokenService: Pick<TokenService, 'verifyAccessToken'>) {
+export function requireAuth(
+  audience: Audience,
+  tokenService: Pick<TokenService, 'verifyAccessToken'>
+) {
   return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     const token = readAccessCookie(req, audience);
     if (!token) {

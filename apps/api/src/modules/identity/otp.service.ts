@@ -78,7 +78,8 @@ export type VerifyOtpOutcome =
   | { ok: true }
   | {
       ok: false;
-      reason: 'NOT_FOUND' | 'EXPIRED' | 'ALREADY_CONSUMED' | 'MAX_ATTEMPTS_EXCEEDED' | 'INCORRECT_CODE';
+      reason:
+        'NOT_FOUND' | 'EXPIRED' | 'ALREADY_CONSUMED' | 'MAX_ATTEMPTS_EXCEEDED' | 'INCORRECT_CODE';
     };
 
 /**

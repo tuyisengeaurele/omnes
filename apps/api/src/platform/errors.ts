@@ -24,7 +24,11 @@ export class HttpError extends Error {
   }
 }
 
-export function badRequest(code: string, message: string, details?: Record<string, unknown>): HttpError {
+export function badRequest(
+  code: string,
+  message: string,
+  details?: Record<string, unknown>
+): HttpError {
   return new HttpError(400, code, message, details);
 }
 
@@ -44,7 +48,11 @@ export function conflict(code: string, message: string): HttpError {
   return new HttpError(409, code, message);
 }
 
-export function tooManyRequests(code: string, message: string, retryAfterSeconds?: number): HttpError {
+export function tooManyRequests(
+  code: string,
+  message: string,
+  retryAfterSeconds?: number
+): HttpError {
   return retryAfterSeconds === undefined
     ? new HttpError(429, code, message)
     : new HttpError(429, code, message, { retryAfterSeconds });

@@ -151,7 +151,9 @@ describe('token service', () => {
       const first = await service.issueSession(USER_ID, 'customer', ['CUSTOMER']);
       await service.refresh(first.refreshToken, roles);
 
-      const oldRecord = store.records.find((r) => r.tokenHash === hashRefreshToken(first.refreshToken));
+      const oldRecord = store.records.find(
+        (r) => r.tokenHash === hashRefreshToken(first.refreshToken)
+      );
       expect(oldRecord?.revokedAt).not.toBeNull();
     });
 
@@ -163,7 +165,9 @@ describe('token service', () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
 
-      const oldRecord = store.records.find((r) => r.tokenHash === hashRefreshToken(first.refreshToken));
+      const oldRecord = store.records.find(
+        (r) => r.tokenHash === hashRefreshToken(first.refreshToken)
+      );
       const newRecord = store.records.find(
         (r) => r.tokenHash === hashRefreshToken(result.tokens.refreshToken)
       );
