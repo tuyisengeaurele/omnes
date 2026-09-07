@@ -16,6 +16,16 @@ env:
   # Used only by tests against a throwaway database in this workflow. Never a
   # real credential, and never used outside CI.
   DATABASE_URL: postgresql://omnes_app:omnes_ci_password@localhost:5432/omnes_test # omnes:allow-secret, throwaway password for the ephemeral CI-only Postgres container below
+  NODE_ENV: test
+  LOG_LEVEL: silent
+  # getConfig() requires each of these to be at least 32 characters. Fixed,
+  # throwaway values that exist only for the lifetime of a CI run - rotating
+  # any of them changes nothing real, since no session or token signed with
+  # them survives past this workflow.
+  JWT_ACCESS_SECRET: ci-only-jwt-access-secret-not-a-real-credential-00 # omnes:allow-secret
+  CSRF_SECRET: ci-only-csrf-secret-not-a-real-credential-000000000000 # omnes:allow-secret
+  OTP_PEPPER: ci-only-otp-pepper-not-a-real-credential-0000000000000 # omnes:allow-secret
+  CORS_ALLOWED_ORIGINS: http://localhost:5173
 
 jobs:
   secret-scan:
@@ -81,6 +91,8 @@ jobs:
           node-version-file: ".nvmrc"
           cache: npm
       - run: npm ci
+      - name: apply migrations to the ci database
+        run: npm run db:migrate:deploy --workspace apps/api
       - run: npm run test
 
   audit:
