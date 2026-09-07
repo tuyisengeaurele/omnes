@@ -2,6 +2,7 @@ import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
+import boundaries from 'eslint-plugin-boundaries';
 
 /**
  * Flat config for the whole monorepo. One config rather than one per workspace:
@@ -31,7 +32,7 @@ export default tseslint.config(
   // makes no-floating-promises possible, and that rule is the one that stops an
   // un-awaited payment call from failing silently.
   {
-    files: ['**/src/**/*.{ts,tsx}'],
+    files: ['**/src/**/*.{ts,tsx}', '**/prisma/seed.ts'],
     extends: [...tseslint.configs.recommendedTypeChecked],
     languageOptions: {
       parserOptions: {
@@ -126,6 +127,64 @@ export default tseslint.config(
           selector: 'MemberExpression[property.name=/^\\$(query|execute)RawUnsafe$/]',
           message:
             'Raw unsafe SQL is an injection sink. Use the $queryRaw tagged template, which parameterizes, or Prisma.sql with placeholders.',
+        },
+      ],
+    },
+  },
+
+  // Module boundaries inside the API. See docs/build-plan.md section 3: a
+  // module exposes a service interface through its index.ts and nothing else.
+  // Reaching into another module's repository or internal files directly is
+  // what makes a later split into separate services a rewrite instead of a
+  // deployment change, so it is a lint error rather than a convention.
+  {
+    files: ['apps/api/src/**/*.ts'],
+    plugins: { boundaries },
+    settings: {
+      'boundaries/elements': [
+        { type: 'module', pattern: 'apps/api/src/modules/*' },
+        { type: 'adapter', pattern: 'apps/api/src/adapters/*' },
+        { type: 'platform', pattern: 'apps/api/src/platform/**' },
+      ],
+      // Needed so a `.js`-suffixed specifier resolves to its `.ts` source file
+      // under NodeNext module resolution. Without this, boundaries cannot
+      // resolve any import in this codebase and silently checks nothing.
+      'import/resolver': {
+        typescript: { project: 'apps/api/tsconfig.json' },
+      },
+    },
+    rules: {
+      // Imports within the same module (order/service.ts -> order/repository.ts)
+      // are internal to one element instance and are not covered by any policy
+      // below, so they are unaffected by this rule. Only cross-instance imports
+      // are checked, which is what "module boundary" means here.
+      'boundaries/dependencies': [
+        'error',
+        {
+          default: 'disallow',
+          policies: [
+            // A module may reach another module only through that module's
+            // index.ts. modules/order/service.ts importing
+            // modules/catalog/repository.ts directly is what this blocks;
+            // modules/order/service.ts importing modules/catalog/index.ts
+            // (its declared service interface) is allowed.
+            {
+              from: { element: { type: 'module' } },
+              allow: { to: { element: { type: 'module', internalPath: 'index.ts' } } },
+            },
+            {
+              from: { element: { type: 'module' } },
+              allow: { to: { element: { types: { anyOf: ['adapter', 'platform'] } } } },
+            },
+            {
+              from: { element: { type: 'adapter' } },
+              allow: { to: { element: { types: { anyOf: ['adapter', 'platform'] } } } },
+            },
+            {
+              from: { element: { type: 'platform' } },
+              allow: { to: { element: { type: 'platform' } } },
+            },
+          ],
         },
       ],
     },

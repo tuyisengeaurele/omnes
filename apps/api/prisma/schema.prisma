@@ -1,0 +1,1045 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -----------------------------------------------------------------------------
+// Identity
+// -----------------------------------------------------------------------------
+// See docs/build-plan.md section 4. OTP codes are hashed at rest and never
+// logged. National ID numbers on VerificationDoc are handled at the
+// application layer (column-level encryption), not by the schema itself.
+
+enum RoleName {
+  CUSTOMER
+  DRIVER
+  MERCHANT_OWNER
+  OPS
+  SUPPORT
+  FINANCE
+  SUPER_ADMIN
+}
+
+enum CredentialType {
+  PHONE_OTP
+  EMAIL_PASSWORD
+  GOOGLE
+  APPLE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum VehicleType {
+  MOTO
+  CAR
+  VAN
+  BICYCLE
+}
+
+enum VerificationOwnerType {
+  DRIVER
+  MERCHANT
+}
+
+enum VerificationDecision {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id          String     @id @default(uuid())
+  phoneE164   String?    @unique
+  email       String?    @unique
+  displayName String
+  locale      String     @default("en")
+  status      UserStatus @default(ACTIVE)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  credentials     Credential[]
+  refreshTokens   RefreshToken[]
+  roles           UserRole[]
+  addresses       Address[]
+  merchantProfile MerchantProfile?
+  driverProfile   DriverProfile?
+
+  @@index([status])
+  @@map("users")
+}
+
+model Credential {
+  id         String         @id @default(uuid())
+  userId     String
+  type       CredentialType
+  secretHash String?
+  verifiedAt DateTime?
+  createdAt  DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("credentials")
+}
+
+// Never logged, hashed at rest. purpose distinguishes registration, login and
+// account-recovery challenges so a code for one cannot be replayed for another.
+model OtpChallenge {
+  id         String    @id @default(uuid())
+  phoneE164  String
+  codeHash   String
+  purpose    String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phoneE164, expiresAt])
+  @@map("otp_challenges")
+}
+
+// tokenHash is the lookup key. familyId ties every rotation of one login
+// together so reuse of an already-rotated token revokes the whole family.
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  familyId  String
+  audience  String
+  expiresAt DateTime
+  rotatedAt DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, familyId])
+  @@map("refresh_tokens")
+}
+
+model UserRole {
+  id     String   @id @default(uuid())
+  userId String
+  role   RoleName
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+  @@map("user_roles")
+}
+
+model MerchantProfile {
+  id         String         @id @default(uuid())
+  userId     String         @unique
+  merchantId String         @unique
+  status     ApprovalStatus @default(PENDING)
+  createdAt  DateTime       @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@map("merchant_profiles")
+}
+
+model DriverProfile {
+  id          String         @id @default(uuid())
+  userId      String         @unique
+  vehicleType VehicleType
+  status      ApprovalStatus @default(PENDING)
+  rating      Decimal        @default(5.0) @db.Decimal(3, 2)
+  standing    String         @default("GOOD")
+  createdAt   DateTime       @default(now())
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availability DriverAvailability?
+  locations    DriverLocation[]
+  offers       DispatchOffer[]
+  assignments  Assignment[]
+
+  @@map("driver_profiles")
+}
+
+// storageKey points at the object store. The file itself never touches the
+// database, and national ID numbers referenced here are encrypted at the
+// application layer before being persisted anywhere.
+model VerificationDoc {
+  id         String                @id @default(uuid())
+  ownerType  VerificationOwnerType
+  ownerId    String
+  docType    String
+  storageKey String
+  reviewedBy String?
+  reviewedAt DateTime?
+  decision   VerificationDecision  @default(PENDING)
+  createdAt  DateTime              @default(now())
+
+  @@index([ownerType, ownerId])
+  @@map("verification_docs")
+}
+
+// -----------------------------------------------------------------------------
+// Location and configuration
+// -----------------------------------------------------------------------------
+// Fee structure is a row rather than a constant, so enabling a new city is
+// configuration rather than a deployment. FR-ADM-008.
+
+enum Vertical {
+  FOOD
+  GROCERY
+  PARCEL
+}
+
+model City {
+  id              String     @id @default(uuid())
+  code            String     @unique
+  name            String
+  countryCode     String
+  currency        String
+  timezone        String
+  activeVerticals Vertical[]
+  createdAt       DateTime   @default(now())
+
+  zones        Zone[]
+  merchants    Merchant[]
+  feeSchedules FeeSchedule[]
+
+  @@map("cities")
+}
+
+model Zone {
+  id              String @id @default(uuid())
+  cityId          String
+  name            String
+  polygon         Json
+  deliveryRadiusM Int
+
+  city      City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  merchants Merchant[]
+
+  @@index([cityId])
+  @@map("zones")
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  label     String
+  latitude  Decimal  @db.Decimal(9, 6)
+  longitude Decimal  @db.Decimal(9, 6)
+  landmark  String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  parcelPickups ParcelDetails[]
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@map("addresses")
+}
+
+// One row per city, vertical and effective date. A new row supersedes the
+// previous one rather than mutating it, which keeps historical orders priced
+// against the schedule that was actually in effect at the time.
+model FeeSchedule {
+  id            String   @id @default(uuid())
+  cityId        String
+  vertical      Vertical
+  baseFeeMinor  BigInt
+  perKmFeeMinor BigInt
+  serviceFeeBps Int
+  effectiveFrom DateTime
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId, vertical, effectiveFrom])
+  @@map("fee_schedules")
+}
+
+// -----------------------------------------------------------------------------
+// Catalog
+// -----------------------------------------------------------------------------
+// Product.description is user-generated: sanitized on write, rendered as text
+// on read, never dangerouslySetInnerHTML.
+
+enum MerchantStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum PromotionType {
+  PERCENT_OFF
+  AMOUNT_OFF
+}
+
+model Merchant {
+  id              String         @id @default(uuid())
+  name            String
+  vertical        Vertical
+  cityId          String
+  zoneId          String
+  latitude        Decimal        @db.Decimal(9, 6)
+  longitude       Decimal        @db.Decimal(9, 6)
+  rating          Decimal        @default(5.0) @db.Decimal(3, 2)
+  prepTimeMinutes Int            @default(15)
+  isOpen          Boolean        @default(true)
+  status          MerchantStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  city            City             @relation(fields: [cityId], references: [id])
+  zone            Zone             @relation(fields: [zoneId], references: [id])
+  merchantProfile MerchantProfile?
+  hours           MerchantHours[]
+  categories      Category[]
+  products        Product[]
+  promotions      Promotion[]
+  carts           Cart[]
+  orders          Order[]
+
+  @@index([cityId, vertical, status])
+  @@index([latitude, longitude])
+  @@map("merchants")
+}
+
+model MerchantHours {
+  id         String @id @default(uuid())
+  merchantId String
+  dayOfWeek  Int
+  opensAt    String
+  closesAt   String
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("merchant_hours")
+}
+
+model Category {
+  id         String @id @default(uuid())
+  merchantId String
+  name       String
+  sortOrder  Int    @default(0)
+
+  merchant Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([merchantId])
+  @@map("categories")
+}
+
+model Product {
+  id          String  @id @default(uuid())
+  merchantId  String
+  categoryId  String?
+  name        String
+  description String?
+  priceMinor  BigInt
+  currency    String
+  imageKey    String?
+  isAvailable Boolean @default(true)
+  stockCount  Int?
+
+  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  modifierGroups ModifierGroup[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+
+  @@index([merchantId, isAvailable])
+  @@map("products")
+}
+
+model ModifierGroup {
+  id        String  @id @default(uuid())
+  productId String
+  name      String
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1)
+  required  Boolean @default(false)
+
+  product Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options ModifierOption[]
+
+  @@index([productId])
+  @@map("modifier_groups")
+}
+
+model ModifierOption {
+  id              String @id @default(uuid())
+  groupId         String
+  name            String
+  priceDeltaMinor BigInt @default(0)
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("modifier_options")
+}
+
+model Promotion {
+  id             String        @id @default(uuid())
+  merchantId     String?
+  code           String        @unique
+  type           PromotionType
+  valueMinor     BigInt?
+  valueBps       Int?
+  startsAt       DateTime
+  endsAt         DateTime
+  maxRedemptions Int?
+
+  merchant    Merchant?         @relation(fields: [merchantId], references: [id])
+  redemptions PromoRedemption[]
+
+  @@index([merchantId])
+  @@map("promotions")
+}
+
+// -----------------------------------------------------------------------------
+// Orders
+// -----------------------------------------------------------------------------
+// Order items snapshot the product name and price at order time. Reading the
+// current Product.priceMinor to render a six month old receipt is a bug that
+// surfaces as a customer dispute.
+//
+// The order state machine is enforced in one place, order/stateMachine.ts,
+// not by this schema. OrderStatus lists every state that machine can reach:
+//
+//   DRAFT -> PENDING_PAYMENT -> PAID -> MERCHANT_PENDING -> ACCEPTED
+//         -> PREPARING -> READY_FOR_PICKUP -> ASSIGNED -> PICKED_UP -> DELIVERED
+//
+// with REJECTED, CANCELLED and REFUNDED as terminal branches.
+
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  MERCHANT_PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  REJECTED
+  CANCELLED
+  REFUNDED
+}
+
+enum ActorType {
+  CUSTOMER
+  DRIVER
+  MERCHANT
+  OPS
+  SYSTEM
+}
+
+enum IssueCategory {
+  MISSING_ITEM
+  WRONG_ITEM
+  LATE_DELIVERY
+  DAMAGED
+  OTHER
+}
+
+enum RatingSubject {
+  DRIVER
+  MERCHANT
+}
+
+enum ParcelSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+model Cart {
+  id         String   @id @default(uuid())
+  userId     String
+  merchantId String
+  vertical   Vertical
+  currency   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant Merchant   @relation(fields: [merchantId], references: [id])
+  items    CartItem[]
+
+  @@unique([userId, merchantId])
+  @@map("carts")
+}
+
+model CartItem {
+  id             String  @id @default(uuid())
+  cartId         String
+  productId      String
+  quantity       Int
+  unitPriceMinor BigInt
+  notes          String?
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  orderNumber      String      @unique
+  customerId       String
+  merchantId       String
+  vertical         Vertical
+  status           OrderStatus @default(DRAFT)
+  addressId        String
+  subtotalMinor    BigInt
+  deliveryFeeMinor BigInt
+  serviceFeeMinor  BigInt
+  discountMinor    BigInt      @default(0)
+  totalMinor       BigInt
+  currency         String
+  scheduledFor     DateTime?
+  placedAt         DateTime    @default(now())
+
+  merchant         Merchant          @relation(fields: [merchantId], references: [id])
+  address          Address           @relation(fields: [addressId], references: [id])
+  items            OrderItem[]
+  events           OrderEvent[]
+  issues           OrderIssue[]
+  ratings          Rating[]
+  parcel           ParcelDetails?
+  paymentIntents   PaymentIntent[]
+  assignment       Assignment?
+  offers           DispatchOffer[]
+  refunds          Refund[]
+  promoRedemptions PromoRedemption[]
+
+  @@index([customerId, placedAt])
+  @@index([merchantId, status])
+  @@index([status, placedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(uuid())
+  orderId        String
+  productId      String
+  nameSnapshot   String
+  quantity       Int
+  unitPriceMinor BigInt
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product             @relation(fields: [productId], references: [id])
+  modifiers OrderItemModifier[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id              String @id @default(uuid())
+  orderItemId     String
+  nameSnapshot    String
+  priceDeltaMinor BigInt
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+// Append-only lifecycle audit. Every transition the state machine makes
+// writes one row here; none are ever updated or deleted.
+model OrderEvent {
+  id         String       @id @default(uuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorType  ActorType
+  actorId    String?
+  reason     String?
+  createdAt  DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model OrderIssue {
+  id          String        @id @default(uuid())
+  orderId     String
+  category    IssueCategory
+  description String
+  resolution  String?
+  createdAt   DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_issues")
+}
+
+model Rating {
+  id          String        @id @default(uuid())
+  orderId     String
+  subjectType RatingSubject
+  score       Int
+  comment     String?
+  createdAt   DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("ratings")
+}
+
+model ParcelDetails {
+  id              String     @id @default(uuid())
+  orderId         String     @unique
+  pickupAddressId String
+  recipientName   String
+  recipientPhone  String
+  sizeClass       ParcelSize
+
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pickupAddress Address @relation(fields: [pickupAddressId], references: [id])
+
+  @@map("parcel_details")
+}
+
+// -----------------------------------------------------------------------------
+// Dispatch
+// -----------------------------------------------------------------------------
+// DispatchDecision records every offer, accept, decline and timeout from the
+// first day. FR-DISP-005, NFR-DATA-001: the training data for the real
+// optimization engine has to exist before the engine does.
+
+enum DispatchOutcome {
+  ACCEPTED
+  DECLINED
+  TIMEOUT
+}
+
+model DriverAvailability {
+  id            String      @id @default(uuid())
+  driverId      String      @unique
+  isOnline      Boolean     @default(false)
+  vehicleType   VehicleType
+  currentZoneId String?
+  lastSeenAt    DateTime    @default(now())
+
+  driver DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_availability")
+}
+
+model DriverLocation {
+  id         String   @id @default(uuid())
+  driverId   String
+  latitude   Decimal  @db.Decimal(9, 6)
+  longitude  Decimal  @db.Decimal(9, 6)
+  accuracyM  Decimal  @db.Decimal(6, 2)
+  recordedAt DateTime @default(now())
+
+  driver DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, recordedAt])
+  @@index([latitude, longitude])
+  @@map("driver_locations")
+}
+
+model DispatchOffer {
+  id        String           @id @default(uuid())
+  orderId   String
+  driverId  String
+  offeredAt DateTime         @default(now())
+  expiresAt DateTime
+  outcome   DispatchOutcome?
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver DriverProfile @relation(fields: [driverId], references: [id])
+
+  @@index([orderId, offeredAt])
+  @@map("dispatch_offers")
+}
+
+model Assignment {
+  id          String    @id @default(uuid())
+  orderId     String    @unique
+  driverId    String
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+  batchId     String?
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver DriverProfile @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+  @@map("assignments")
+}
+
+model DispatchDecision {
+  id             String   @id @default(uuid())
+  orderId        String
+  strategy       String
+  candidateCount Int
+  chosenDriverId String?
+  latencyMs      Int
+  payload        Json
+  createdAt      DateTime @default(now())
+
+  @@index([orderId])
+  @@map("dispatch_decisions")
+}
+
+// -----------------------------------------------------------------------------
+// Payments
+// -----------------------------------------------------------------------------
+// Double-entry, append-only ledger. Every money movement writes balanced
+// debit and credit LedgerEntry rows under one LedgerTxn. No row is ever
+// updated or deleted; corrections are reversing entries. A database
+// constraint (added in the payments migration) enforces that the entries in
+// a transaction sum to zero.
+//
+// Wallet balance is derived from the ledger at query time, never stored in a
+// mutable column. A stored balance and a ledger will disagree eventually, and
+// then someone has to decide which one is lying.
+
+enum PaymentMethod {
+  MTN_MOMO
+  AIRTEL
+  CARD
+  CASH
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum LedgerOwnerType {
+  PLATFORM
+  MERCHANT
+  DRIVER
+  CUSTOMER
+}
+
+enum LedgerAccountKind {
+  REVENUE
+  PAYABLE
+  COMMISSION
+  WALLET
+  ESCROW
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PayeeType {
+  MERCHANT
+  DRIVER
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum RefundDestination {
+  ORIGINAL
+  WALLET
+}
+
+model PaymentIntent {
+  id             String        @id @default(uuid())
+  orderId        String
+  method         PaymentMethod
+  amountMinor    BigInt
+  currency       String
+  status         PaymentStatus @default(PENDING)
+  providerRef    String?
+  idempotencyKey String        @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  order    Order            @relation(fields: [orderId], references: [id])
+  attempts PaymentAttempt[]
+
+  @@index([orderId])
+  @@map("payment_intents")
+}
+
+model PaymentAttempt {
+  id              String        @id @default(uuid())
+  intentId        String
+  attemptNo       Int
+  status          PaymentStatus
+  providerCode    String?
+  providerMessage String?
+  rawResponse     Json?
+  createdAt       DateTime      @default(now())
+
+  intent PaymentIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+
+  @@index([intentId])
+  @@map("payment_attempts")
+}
+
+model LedgerAccount {
+  id        String            @id @default(uuid())
+  ownerType LedgerOwnerType
+  ownerId   String
+  kind      LedgerAccountKind
+  currency  String
+  createdAt DateTime          @default(now())
+
+  entries LedgerEntry[]
+
+  @@unique([ownerType, ownerId, kind, currency])
+  @@map("ledger_accounts")
+}
+
+// reference is the idempotency key for the write that created this
+// transaction, so replaying a webhook or a retried request cannot post the
+// same movement twice.
+model LedgerTxn {
+  id         String   @id @default(uuid())
+  reference  String   @unique
+  kind       String
+  occurredAt DateTime @default(now())
+  memo       String?
+
+  entries LedgerEntry[]
+
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id          String          @id @default(uuid())
+  txnId       String
+  accountId   String
+  direction   LedgerDirection
+  amountMinor BigInt
+  currency    String
+
+  txn     LedgerTxn     @relation(fields: [txnId], references: [id], onDelete: Cascade)
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, txnId])
+  @@map("ledger_entries")
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String
+  currency  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, currency])
+  @@map("wallets")
+}
+
+model CommissionRule {
+  id            String    @id @default(uuid())
+  scope         String
+  merchantId    String?
+  vertical      Vertical?
+  rateBps       Int
+  effectiveFrom DateTime
+
+  @@index([merchantId])
+  @@map("commission_rules")
+}
+
+model Payout {
+  id              String       @id @default(uuid())
+  payeeType       PayeeType
+  payeeId         String
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossMinor      BigInt
+  commissionMinor BigInt
+  netMinor        BigInt
+  status          PayoutStatus @default(PENDING)
+  providerRef     String?
+  createdAt       DateTime     @default(now())
+
+  @@index([payeeType, payeeId, periodStart])
+  @@map("payouts")
+}
+
+model Refund {
+  id          String            @id @default(uuid())
+  orderId     String
+  amountMinor BigInt
+  destination RefundDestination
+  approvedBy  String
+  createdAt   DateTime          @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("refunds")
+}
+
+model PromoRedemption {
+  id          String   @id @default(uuid())
+  promotionId String
+  userId      String
+  orderId     String
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  order     Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([promotionId, userId])
+  @@map("promo_redemptions")
+}
+
+// -----------------------------------------------------------------------------
+// Notifications and ops
+// -----------------------------------------------------------------------------
+// NotificationLog stores delivery metadata only. Message bodies are never
+// logged, which is what keeps an OTP code out of the log stream by
+// construction rather than by a reviewer remembering to redact it.
+
+enum NotificationChannel {
+  PUSH
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum FraudSubjectType {
+  CUSTOMER
+  DRIVER
+  MERCHANT
+  ORDER
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model NotificationPref {
+  id       String                @id @default(uuid())
+  userId   String
+  category String
+  channels NotificationChannel[]
+
+  @@unique([userId, category])
+  @@map("notification_prefs")
+}
+
+model NotificationLog {
+  id          String              @id @default(uuid())
+  userId      String
+  category    String
+  channel     NotificationChannel
+  providerRef String?
+  status      NotificationStatus  @default(QUEUED)
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([userId, createdAt])
+  @@map("notification_logs")
+}
+
+// Every ops action that touches customer, merchant, driver or money data
+// writes one row here. before and after are the full JSON snapshots of the
+// affected record, so a dispute can be reconstructed without guessing.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorRole  RoleName
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+model SupportTicket {
+  id        String         @id @default(uuid())
+  orderId   String?
+  userId    String
+  category  String
+  priority  TicketPriority @default(NORMAL)
+  status    TicketStatus   @default(OPEN)
+  slaDueAt  DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+  @@index([status, slaDueAt])
+  @@map("support_tickets")
+}
+
+model FraudFlag {
+  id          String           @id @default(uuid())
+  subjectType FraudSubjectType
+  subjectId   String
+  signal      String
+  severity    FraudSeverity
+  reviewedBy  String?
+  createdAt   DateTime         @default(now())
+
+  @@index([subjectType, subjectId])
+  @@map("fraud_flags")
+}
