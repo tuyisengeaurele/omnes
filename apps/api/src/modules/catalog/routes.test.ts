@@ -227,6 +227,76 @@ describe('catalog routes', () => {
         res.body.items[farIndex].distanceMeters
       );
     });
+
+    it('sorts by rating and filters by minRating, in both geo and non-geo mode', async () => {
+      const ops = await createUserWithRole('OPS');
+      const { agent, app, csrfToken } = await loginAgentWithOwnApp(ops.phone);
+      const db = getDb();
+
+      const lowRes = await agent
+        .post('/api/catalog/merchants')
+        .set('X-CSRF-Token', csrfToken)
+        .send({
+          name: 'Low Rated',
+          vertical: 'FOOD',
+          cityId,
+          zoneId,
+          latitude: -1.9441,
+          longitude: 30.0619,
+          ownerUserId: (await createUserForOwnership()).userId,
+        });
+      const highRes = await agent
+        .post('/api/catalog/merchants')
+        .set('X-CSRF-Token', csrfToken)
+        .send({
+          name: 'High Rated',
+          vertical: 'FOOD',
+          cityId,
+          zoneId,
+          latitude: -1.9441,
+          longitude: 30.0619,
+          ownerUserId: (await createUserForOwnership()).userId,
+        });
+      const lowId = lowRes.body.merchant.id as string;
+      const highId = highRes.body.merchant.id as string;
+      createdMerchantIds.push(lowId, highId);
+
+      await db.merchant.update({ where: { id: lowId }, data: { rating: 2.0 } });
+      await db.merchant.update({ where: { id: highId }, data: { rating: 4.8 } });
+
+      const sorted = await request(app)
+        .get('/api/catalog/merchants')
+        .query({ cityId, sortBy: 'rating', limit: 50 })
+        .expect(200);
+      const sortedIds = sorted.body.items.map((m: { id: string }) => m.id);
+      expect(sortedIds.indexOf(highId)).toBeLessThan(sortedIds.indexOf(lowId));
+
+      const filtered = await request(app)
+        .get('/api/catalog/merchants')
+        .query({ cityId, minRating: '4', limit: 50 })
+        .expect(200);
+      const filteredIds = filtered.body.items.map((m: { id: string }) => m.id);
+      expect(filteredIds).toContain(highId);
+      expect(filteredIds).not.toContain(lowId);
+
+      const geoSorted = await request(app)
+        .get('/api/catalog/merchants')
+        .query({
+          cityId,
+          latitude: -1.9441,
+          longitude: 30.0619,
+          radiusM: 20000,
+          sortBy: 'rating',
+          limit: 50,
+        })
+        .expect(200);
+      const geoSortedIds = geoSorted.body.items.map((m: { id: string }) => m.id);
+      expect(geoSortedIds.indexOf(highId)).toBeLessThan(geoSortedIds.indexOf(lowId));
+      // Still reports distance even though rating, not distance, chose the order.
+      expect(geoSorted.body.items[geoSortedIds.indexOf(highId)].distanceMeters).toBeTypeOf(
+        'number'
+      );
+    });
   });
 
   describe('GET /merchants/:id and search', () => {
