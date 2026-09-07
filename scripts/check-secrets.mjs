@@ -38,7 +38,9 @@ const SKIPPED_PATHS = [
 /** Filenames that must never be committed at all, whatever they contain. */
 const FORBIDDEN_FILENAMES = [
   { pattern: /(^|\/)\.env$/, reason: 'environment file' },
-  { pattern: /(^|\/)\.env\.(?!example$)[^/]+$/, reason: 'environment file' },
+  // Forbidden unless the whole filename ends in .example: .env.production is
+  // blocked, .env.example and .env.test.example are not.
+  { pattern: /(^|\/)\.env\.(?!.*example$)[^/]+$/, reason: 'environment file' },
   { pattern: /\.(pem|key|p12|pfx|jks|keystore)$/i, reason: 'key material' },
   { pattern: /(^|\/)id_(rsa|dsa|ecdsa|ed25519)$/, reason: 'ssh private key' },
   { pattern: /(^|\/)\.npmrc$/, reason: 'may contain a registry auth token' },
