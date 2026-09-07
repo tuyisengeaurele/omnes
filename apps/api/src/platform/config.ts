@@ -45,6 +45,13 @@ const envSchema = z.object({
   JWT_ACCESS_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
+  // Keys the HMAC used to hash OTP codes at rest. A distinct secret rather
+  // than reusing JWT_ACCESS_SECRET, so a leak of one does not also expose
+  // the other: an attacker with only the OTP pepper cannot forge sessions,
+  // and one with only the JWT secret cannot brute-force stored OTP hashes
+  // offline against the small numeric keyspace.
+  OTP_PEPPER: secretSchema,
+
   CSRF_SECRET: secretSchema,
   COOKIE_DOMAIN: z.string().optional(),
   COOKIE_SECURE: booleanFromString.default(false),
