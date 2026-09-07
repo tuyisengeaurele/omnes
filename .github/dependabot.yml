@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    groups:
+      # Type definitions and lint tooling churn constantly and rarely need
+      # individual review, so they land as one grouped PR instead of ten.
+      dev-tooling:
+        patterns:
+          - "@types/*"
+          - "eslint*"
+          - "prettier*"
+          - "@typescript-eslint/*"
+          - "typescript-eslint"
+    commit-message:
+      prefix: chore
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    commit-message:
+      prefix: chore
