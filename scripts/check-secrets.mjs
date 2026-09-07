@@ -58,7 +58,14 @@ const PLACEHOLDER = new RegExp(
   'i'
 );
 
-/** High-confidence provider credential formats. No allowlist applies to these. */
+/**
+ * High-confidence provider credential formats.
+ *
+ * An entry may set `placeholderGroup` to the index of a capture holding the
+ * secret portion. When it is set, a match whose captured value is an obvious
+ * placeholder is not reported, which is what lets `.env.example` carry a
+ * syntactically valid connection string without tripping the scan.
+ */
 const PROVIDER_PATTERNS = [
   { name: 'private key block', re: /-----BEGIN (?:[A-Z ]+ )?PRIVATE KEY-----/ },
   { name: 'AWS access key id', re: /\bAKIA[0-9A-Z]{16}\b/ },
@@ -71,7 +78,8 @@ const PROVIDER_PATTERNS = [
   { name: 'signed JWT', re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/ },
   {
     name: 'connection string with inline password',
-    re: /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^:@\s/]+:[^@\s/]{4,}@/,
+    re: /\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^:@\s/]+:([^@\s/]{4,})@/,
+    placeholderGroup: 1,
   },
 ];
 
@@ -82,6 +90,9 @@ const PROVIDER_PATTERNS = [
  */
 const GENERIC_ASSIGNMENT =
   /\b(password|passwd|pwd|secret|api[-_]?key|apikey|access[-_]?token|auth[-_]?token|client[-_]?secret|private[-_]?key|encryption[-_]?key|jwt[-_]?secret|session[-_]?secret|db[-_]?pass\w*)\b\s*[:=]\s*(['"`])([^'"`\n]{8,})\2/gi;
+
+/** Values that a credential-shaped key name can legitimately hold. */
+const NON_SECRET_VALUE = /^(?:\d+|true|false|on|off|yes|no)$/i;
 
 /** `KEY=value` in dotenv-style files, where quoting is optional. */
 const DOTENV_ASSIGNMENT =
@@ -123,8 +134,11 @@ function scanFile(file, content) {
   };
 
   lines.forEach((line, i) => {
-    for (const { name, re } of PROVIDER_PATTERNS) {
-      if (re.test(line)) record(i + 1, name, 'matches a known credential format');
+    for (const { name, re, placeholderGroup } of PROVIDER_PATTERNS) {
+      const match = re.exec(line);
+      if (!match) continue;
+      if (placeholderGroup && PLACEHOLDER.test(match[placeholderGroup] ?? '')) continue;
+      record(i + 1, name, 'matches a known credential format');
     }
   });
 
@@ -139,6 +153,11 @@ function scanFile(file, content) {
     for (const match of content.matchAll(DOTENV_ASSIGNMENT)) {
       const value = unquote(match[2]);
       if (PLACEHOLDER.test(value)) continue;
+      // A TTL, a port, a retry count or a feature flag is not a credential,
+      // even though the key it sits under contains the word TOKEN or SECRET.
+      if (NON_SECRET_VALUE.test(value)) continue;
+      // Nothing shorter than this is a usable secret.
+      if (value.length < 8) continue;
       const lineNo = content.slice(0, match.index).split('\n').length;
       record(
         lineNo,
