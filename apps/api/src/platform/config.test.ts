@@ -71,9 +71,48 @@ describe('loadConfig', () => {
     ).toThrow(ConfigError);
   });
 
-  it('allows production with COOKIE_SECURE=true', () => {
+  it('allows production with COOKIE_SECURE=true and real providers', () => {
     expect(() =>
-      loadConfig(validEnv({ NODE_ENV: 'production', COOKIE_SECURE: 'true' }))
+      loadConfig(
+        validEnv({
+          NODE_ENV: 'production',
+          COOKIE_SECURE: 'true',
+          SMS_PROVIDER: 'live',
+          PAYMENT_PROVIDER: 'mtn_momo',
+        })
+      )
+    ).not.toThrow();
+  });
+
+  it('refuses to start in production with a mock SMS provider', () => {
+    expect(() =>
+      loadConfig(
+        validEnv({
+          NODE_ENV: 'production',
+          COOKIE_SECURE: 'true',
+          SMS_PROVIDER: 'mock',
+          PAYMENT_PROVIDER: 'mtn_momo',
+        })
+      )
+    ).toThrow(ConfigError);
+  });
+
+  it('refuses to start in production with a mock payment provider', () => {
+    expect(() =>
+      loadConfig(
+        validEnv({
+          NODE_ENV: 'production',
+          COOKIE_SECURE: 'true',
+          SMS_PROVIDER: 'live',
+          PAYMENT_PROVIDER: 'mock',
+        })
+      )
+    ).toThrow(ConfigError);
+  });
+
+  it('allows a mock provider outside production', () => {
+    expect(() =>
+      loadConfig(validEnv({ SMS_PROVIDER: 'mock', PAYMENT_PROVIDER: 'mock' }))
     ).not.toThrow();
   });
 

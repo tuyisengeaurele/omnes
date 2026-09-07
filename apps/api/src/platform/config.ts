@@ -105,6 +105,26 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
     ]);
   }
 
+  // A mock adapter always reports success and never actually reaches a
+  // customer's phone or a real payment rail. That is exactly right for
+  // local development and exactly catastrophic in production, where it
+  // would mean OTPs are never sent and payments are never charged while the
+  // API insists everything worked. Fail startup rather than ship silently.
+  if (config.NODE_ENV === 'production') {
+    const mockProviders: string[] = [];
+    if (config.SMS_PROVIDER === 'mock') mockProviders.push('SMS_PROVIDER');
+    if (config.PAYMENT_PROVIDER === 'mock') mockProviders.push('PAYMENT_PROVIDER');
+    if (mockProviders.length > 0) {
+      throw new ConfigError(
+        mockProviders.map((path) => ({
+          code: 'custom' as const,
+          path: [path],
+          message: 'must not be "mock" when NODE_ENV=production',
+        }))
+      );
+    }
+  }
+
   return config;
 }
 
