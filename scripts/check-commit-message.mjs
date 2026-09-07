@@ -30,7 +30,10 @@ const MAX_BODY_LINE = 100;
 
 /** Attribution trailers and tool signatures. None of these belong in this history. */
 const FORBIDDEN = [
-  { re: /co-?authored-?by:.*(claude|anthropic|openai|gpt|copilot|cursor|codex|bot)/i, what: 'tool attribution trailer' },
+  {
+    re: /co-?authored-?by:.*(claude|anthropic|openai|gpt|copilot|cursor|codex|bot)/i,
+    what: 'tool attribution trailer',
+  },
   { re: /generated\s+with\s+\[?(claude|chatgpt|copilot|cursor)/i, what: 'tool attribution line' },
   { re: /\bclaude(\s+code)?\b/i, what: 'assistant name' },
   { re: /\banthropic\b/i, what: 'vendor name' },
@@ -81,7 +84,8 @@ function main() {
       errors.push(`body line ${i + 1} is ${line.length} chars, wrap at ${MAX_BODY_LINE}`);
     }
     for (const { re, what } of FORBIDDEN) {
-      if (re.test(line)) errors.push(`line ${i + 1} contains a ${what}: ${line.trim().slice(0, 70)}`);
+      if (re.test(line))
+        errors.push(`line ${i + 1} contains a ${what}: ${line.trim().slice(0, 70)}`);
     }
   });
 

@@ -123,8 +123,7 @@ export default tseslint.config(
         {
           // Prisma parameterizes $queryRaw tagged templates. $queryRawUnsafe and
           // $executeRawUnsafe take a plain string and are an injection sink.
-          selector:
-            "MemberExpression[property.name=/^\\$(query|execute)RawUnsafe$/]",
+          selector: 'MemberExpression[property.name=/^\\$(query|execute)RawUnsafe$/]',
           message:
             'Raw unsafe SQL is an injection sink. Use the $queryRaw tagged template, which parameterizes, or Prisma.sql with placeholders.',
         },

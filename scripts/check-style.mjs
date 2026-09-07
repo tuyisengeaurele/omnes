@@ -23,7 +23,11 @@ const ALLOW_MARKER = 'omnes:allow-style';
  * not trip its own rule. Keep it that way.
  */
 const BANNED = [
-  [0x2014, 'em dash', 'rewrite the sentence, because swapping in a hyphen still reads as generated'],
+  [
+    0x2014,
+    'em dash',
+    'rewrite the sentence, because swapping in a hyphen still reads as generated',
+  ],
   [0x2013, 'en dash', 'use a plain hyphen, or the word "to" for a range'],
   [0x2018, 'curly opening quote', 'use a straight apostrophe'],
   [0x2019, 'curly apostrophe', 'use a straight apostrophe'],
@@ -40,7 +44,11 @@ const BANNED_BY_CHAR = new Map(BANNED.map(([c, name, fix]) => [c, { name, fix }]
 const BANNED_RE = new RegExp(`[${BANNED.map(([c]) => c).join('')}]`, 'g');
 
 /** The requirements spec is the client's own document and is not ours to restyle. */
-const EXEMPT = [/^docs\/requirements-spec\.md$/, /(^|\/)package-lock\.json$/, /(^|\/)node_modules\//];
+const EXEMPT = [
+  /^docs\/requirements-spec\.md$/,
+  /(^|\/)package-lock\.json$/,
+  /(^|\/)node_modules\//,
+];
 
 const BINARY_EXT = /\.(png|jpe?g|gif|webp|avif|ico|svg|pdf|woff2?|ttf|eot|zip|gz|tar|mp4|webm)$/i;
 

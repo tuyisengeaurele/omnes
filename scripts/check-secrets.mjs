@@ -140,7 +140,11 @@ function scanFile(file, content) {
       const value = unquote(match[2]);
       if (PLACEHOLDER.test(value)) continue;
       const lineNo = content.slice(0, match.index).split('\n').length;
-      record(lineNo, `${match[1]} has a real-looking value`, 'use a placeholder in committed files');
+      record(
+        lineNo,
+        `${match[1]} has a real-looking value`,
+        'use a placeholder in committed files'
+      );
     }
   }
 
@@ -154,7 +158,12 @@ function main() {
   for (const file of files) {
     for (const { pattern, reason } of FORBIDDEN_FILENAMES) {
       if (pattern.test(file)) {
-        findings.push({ file, line: 0, kind: `forbidden file (${reason})`, detail: 'must not be committed' });
+        findings.push({
+          file,
+          line: 0,
+          kind: `forbidden file (${reason})`,
+          detail: 'must not be committed',
+        });
       }
     }
 
