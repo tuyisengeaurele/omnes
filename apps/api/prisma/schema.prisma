@@ -414,3 +414,217 @@ model Promotion {
   @@map("promotions")
 }
 
+// -----------------------------------------------------------------------------
+// Orders
+// -----------------------------------------------------------------------------
+// Order items snapshot the product name and price at order time. Reading the
+// current Product.priceMinor to render a six month old receipt is a bug that
+// surfaces as a customer dispute.
+//
+// The order state machine is enforced in one place, order/stateMachine.ts,
+// not by this schema. OrderStatus lists every state that machine can reach:
+//
+//   DRAFT -> PENDING_PAYMENT -> PAID -> MERCHANT_PENDING -> ACCEPTED
+//         -> PREPARING -> READY_FOR_PICKUP -> ASSIGNED -> PICKED_UP -> DELIVERED
+//
+// with REJECTED, CANCELLED and REFUNDED as terminal branches.
+
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  MERCHANT_PENDING
+  ACCEPTED
+  PREPARING
+  READY_FOR_PICKUP
+  ASSIGNED
+  PICKED_UP
+  DELIVERED
+  REJECTED
+  CANCELLED
+  REFUNDED
+}
+
+enum ActorType {
+  CUSTOMER
+  DRIVER
+  MERCHANT
+  OPS
+  SYSTEM
+}
+
+enum IssueCategory {
+  MISSING_ITEM
+  WRONG_ITEM
+  LATE_DELIVERY
+  DAMAGED
+  OTHER
+}
+
+enum RatingSubject {
+  DRIVER
+  MERCHANT
+}
+
+enum ParcelSize {
+  SMALL
+  MEDIUM
+  LARGE
+}
+
+model Cart {
+  id         String   @id @default(uuid())
+  userId     String
+  merchantId String
+  vertical   Vertical
+  currency   String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  merchant Merchant   @relation(fields: [merchantId], references: [id])
+  items    CartItem[]
+
+  @@unique([userId, merchantId])
+  @@map("carts")
+}
+
+model CartItem {
+  id             String  @id @default(uuid())
+  cartId         String
+  productId      String
+  quantity       Int
+  unitPriceMinor BigInt
+  notes          String?
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([cartId])
+  @@map("cart_items")
+}
+
+model Order {
+  id               String      @id @default(uuid())
+  orderNumber      String      @unique
+  customerId       String
+  merchantId       String
+  vertical         Vertical
+  status           OrderStatus @default(DRAFT)
+  addressId        String
+  subtotalMinor    BigInt
+  deliveryFeeMinor BigInt
+  serviceFeeMinor  BigInt
+  discountMinor    BigInt      @default(0)
+  totalMinor       BigInt
+  currency         String
+  scheduledFor     DateTime?
+  placedAt         DateTime    @default(now())
+
+  merchant         Merchant          @relation(fields: [merchantId], references: [id])
+  address          Address           @relation(fields: [addressId], references: [id])
+  items            OrderItem[]
+  events           OrderEvent[]
+  issues           OrderIssue[]
+  ratings          Rating[]
+  parcel           ParcelDetails?
+  paymentIntents   PaymentIntent[]
+  assignment       Assignment?
+  offers           DispatchOffer[]
+  refunds          Refund[]
+  promoRedemptions PromoRedemption[]
+
+  @@index([customerId, placedAt])
+  @@index([merchantId, status])
+  @@index([status, placedAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(uuid())
+  orderId        String
+  productId      String
+  nameSnapshot   String
+  quantity       Int
+  unitPriceMinor BigInt
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product             @relation(fields: [productId], references: [id])
+  modifiers OrderItemModifier[]
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id              String @id @default(uuid())
+  orderItemId     String
+  nameSnapshot    String
+  priceDeltaMinor BigInt
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  @@index([orderItemId])
+  @@map("order_item_modifiers")
+}
+
+// Append-only lifecycle audit. Every transition the state machine makes
+// writes one row here; none are ever updated or deleted.
+model OrderEvent {
+  id         String       @id @default(uuid())
+  orderId    String
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  actorType  ActorType
+  actorId    String?
+  reason     String?
+  createdAt  DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model OrderIssue {
+  id          String        @id @default(uuid())
+  orderId     String
+  category    IssueCategory
+  description String
+  resolution  String?
+  createdAt   DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_issues")
+}
+
+model Rating {
+  id          String        @id @default(uuid())
+  orderId     String
+  subjectType RatingSubject
+  score       Int
+  comment     String?
+  createdAt   DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("ratings")
+}
+
+model ParcelDetails {
+  id              String     @id @default(uuid())
+  orderId         String     @unique
+  pickupAddressId String
+  recipientName   String
+  recipientPhone  String
+  sizeClass       ParcelSize
+
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  pickupAddress Address @relation(fields: [pickupAddressId], references: [id])
+
+  @@map("parcel_details")
+}
+
