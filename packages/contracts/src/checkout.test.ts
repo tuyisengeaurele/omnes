@@ -19,9 +19,7 @@ describe('checkoutSchema', () => {
   });
 
   it('rejects an unsupported payment method', () => {
-    expect(checkoutSchema.safeParse(validCheckout({ paymentMethod: 'CASH' })).success).toBe(
-      false
-    );
+    expect(checkoutSchema.safeParse(validCheckout({ paymentMethod: 'CASH' })).success).toBe(false);
   });
 
   it('rejects a missing idempotencyKey', () => {
@@ -31,9 +29,9 @@ describe('checkoutSchema', () => {
   });
 
   it('rejects an idempotencyKey that is not a uuid', () => {
-    expect(
-      checkoutSchema.safeParse(validCheckout({ idempotencyKey: 'not-a-uuid' })).success
-    ).toBe(false);
+    expect(checkoutSchema.safeParse(validCheckout({ idempotencyKey: 'not-a-uuid' })).success).toBe(
+      false
+    );
   });
 
   it('rejects an address with an out-of-range latitude', () => {
@@ -69,9 +67,9 @@ describe('paymentWebhookSchema', () => {
   });
 
   it('rejects an unrecognized status', () => {
-    expect(
-      paymentWebhookSchema.safeParse({ providerRef: 'ref-1', status: 'MAYBE' }).success
-    ).toBe(false);
+    expect(paymentWebhookSchema.safeParse({ providerRef: 'ref-1', status: 'MAYBE' }).success).toBe(
+      false
+    );
   });
 
   it('rejects a missing providerRef', () => {

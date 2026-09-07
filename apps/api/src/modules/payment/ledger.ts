@@ -58,8 +58,7 @@ export interface LedgerEntryInput {
 }
 
 export type PostTransactionResult =
-  | { posted: true; txnId: string }
-  | { posted: false; reason: 'ALREADY_POSTED' };
+  { posted: true; txnId: string } | { posted: false; reason: 'ALREADY_POSTED' };
 
 export async function postLedgerTransaction(params: {
   reference: string;
