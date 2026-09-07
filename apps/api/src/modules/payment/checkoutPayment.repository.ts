@@ -14,10 +14,16 @@
  */
 
 import { getDb } from '../../platform/db.js';
+import { getLogger } from '../../platform/logger.js';
+import { canTransition } from '../order/index.js';
+import type { OrderStatus } from '../../generated/prisma/index.js';
 
 export interface PaymentIntentRecord {
   id: string;
   orderId: string;
+  /** The order's own human-readable number, for a notification message - see webhookProcessor.ts. */
+  orderNumber: string;
+  customerId: string;
   merchantId: string;
   /** The order's vertical - carried here so a webhook handler can resolve a commission rate without a second lookup. */
   vertical: string;
@@ -39,13 +45,15 @@ async function loadIntent(
       amountMinor: true,
       currency: true,
       createdAt: true,
-      order: { select: { merchantId: true, vertical: true } },
+      order: { select: { orderNumber: true, customerId: true, merchantId: true, vertical: true } },
     },
   });
   if (!intent) return null;
   return {
     id: intent.id,
     orderId: intent.orderId,
+    orderNumber: intent.order.orderNumber,
+    customerId: intent.order.customerId,
     merchantId: intent.order.merchantId,
     vertical: intent.order.vertical,
     status: intent.status,
@@ -67,7 +75,7 @@ export async function findPaymentIntentByProviderRef(
 
 export type ApplyOutcome =
   | { applied: true; intent: PaymentIntentRecord }
-  | { applied: false; reason: 'ALREADY_TERMINAL' | 'NOT_FOUND' };
+  | { applied: false; reason: 'ALREADY_TERMINAL' | 'NOT_FOUND' | 'ORDER_NOT_TRANSITIONABLE' };
 
 /**
  * Records that the initiate() call returned a providerRef and the payment
@@ -104,7 +112,15 @@ async function finalize(params: {
         amountMinor: true,
         currency: true,
         createdAt: true,
-        order: { select: { merchantId: true, status: true, vertical: true } },
+        order: {
+          select: {
+            orderNumber: true,
+            customerId: true,
+            merchantId: true,
+            status: true,
+            vertical: true,
+          },
+        },
       },
     });
     if (!intent) return { applied: false, reason: 'NOT_FOUND' } as const;
@@ -114,6 +130,29 @@ async function finalize(params: {
     // as "already handled" rather than re-applying is the whole point.
     if (intent.status === 'SUCCEEDED' || intent.status === 'FAILED') {
       return { applied: false, reason: 'ALREADY_TERMINAL' } as const;
+    }
+
+    const newOrderStatus: OrderStatus = params.newStatus === 'SUCCEEDED' ? 'PAID' : 'CANCELLED';
+
+    // The order's own status can now move independently of the payment -
+    // order/lifecycle.routes.ts lets a customer or ops cancel while a
+    // payment is still PENDING, which can race a webhook landing for that
+    // same payment. canTransition is the single source of truth for
+    // whether the order could still legally receive this result; if it
+    // cannot, the payment intent itself still reaches a terminal status
+    // below (that fact about the payment is true regardless), but the
+    // order is left alone and the caller is told so it can skip posting a
+    // ledger entry for money an already-cancelled order no longer expects.
+    const orderTransitionable = canTransition(intent.order.status, newOrderStatus);
+    if (!orderTransitionable) {
+      getLogger().warn(
+        {
+          orderId: intent.orderId,
+          orderStatus: intent.order.status,
+          paymentResult: newOrderStatus,
+        },
+        'payment resolved for an order that can no longer accept that result - needs manual reconciliation'
+      );
     }
 
     const priorAttempts = await tx.paymentAttempt.count({ where: { intentId: intent.id } });
@@ -138,32 +177,36 @@ async function finalize(params: {
       },
     });
 
-    const newOrderStatus = params.newStatus === 'SUCCEEDED' ? 'PAID' : 'CANCELLED';
+    if (!orderTransitionable)
+      return { applied: false, reason: 'ORDER_NOT_TRANSITIONABLE' } as const;
+
+    // where also pins the expected current status, so a same-instant race
+    // with another writer still cannot silently overwrite work that
+    // canTransition's read did not see.
     const updateResult = await tx.order.updateMany({
-      where: { id: intent.orderId, status: 'PENDING_PAYMENT' },
+      where: { id: intent.orderId, status: intent.order.status },
       data: { status: newOrderStatus },
     });
-    // Only log the transition if it actually applied - if the order was
-    // not in PENDING_PAYMENT (should not happen given the payment intent
-    // was itself still pending, but this guards against it silently),
-    // there is nothing to log a transition for.
-    if (updateResult.count > 0) {
-      await tx.orderEvent.create({
-        data: {
-          orderId: intent.orderId,
-          fromStatus: 'PENDING_PAYMENT',
-          toStatus: newOrderStatus,
-          actorType: 'SYSTEM',
-          reason: params.newStatus === 'SUCCEEDED' ? 'payment succeeded' : 'payment failed',
-        },
-      });
-    }
+    if (updateResult.count === 0)
+      return { applied: false, reason: 'ORDER_NOT_TRANSITIONABLE' } as const;
+
+    await tx.orderEvent.create({
+      data: {
+        orderId: intent.orderId,
+        fromStatus: intent.order.status,
+        toStatus: newOrderStatus,
+        actorType: 'SYSTEM',
+        reason: params.newStatus === 'SUCCEEDED' ? 'payment succeeded' : 'payment failed',
+      },
+    });
 
     return {
       applied: true,
       intent: {
         id: intent.id,
         orderId: intent.orderId,
+        orderNumber: intent.order.orderNumber,
+        customerId: intent.order.customerId,
         merchantId: intent.order.merchantId,
         vertical: intent.order.vertical,
         status: params.newStatus,
