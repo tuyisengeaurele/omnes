@@ -1,0 +1,16 @@
+#!/bin/sh
+#
+# Checks the commit message itself. The pre-commit hook only sees file content,
+# and a message is just as public as the diff once it is pushed.
+
+set -e
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "commit-msg: node not found on PATH" >&2
+  exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+node "$ROOT/scripts/check-style.mjs" --message "$1"
+node "$ROOT/scripts/check-commit-message.mjs" "$1"
