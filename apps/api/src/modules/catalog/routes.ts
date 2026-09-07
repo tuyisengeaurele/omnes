@@ -20,7 +20,13 @@ import {
   updateMerchantSchema,
   updateProductSchema,
 } from '@omnes/contracts';
-import { requireAuth, type TokenService } from '../identity/index.js';
+import {
+  findUserById,
+  getMerchantIdForOwner,
+  linkMerchantOwner,
+  requireAuth,
+  type TokenService,
+} from '../identity/index.js';
 import { requireRole } from '../../platform/rbac.js';
 import { badRequest, notFound, unauthorized } from '../../platform/errors.js';
 import { omitUndefined } from '../../platform/objectUtils.js';
@@ -110,7 +116,24 @@ export function createCatalogRouter(catalog: CatalogService, tokenService: Token
     requireRole('OPS', 'SUPER_ADMIN'),
     async (req, res) => {
       const input = createMerchantSchema.parse(req.body);
-      const merchant = await catalog.createMerchant(input);
+      const { ownerUserId, ...merchantInput } = input;
+
+      // Validated before the merchant is created, not after: catalog and
+      // identity writes are not in one transaction, so ordering this way
+      // keeps the common failure modes (bad user id, a user who already
+      // owns a merchant) from ever creating an orphaned merchant row. It
+      // does not close a true concurrent-request race - that would need a
+      // single transaction spanning both modules, which is more machinery
+      // than an ops-only provisioning endpoint needs at MVP scale.
+      const owner = await findUserById(ownerUserId);
+      if (!owner) throw badRequest('OWNER_NOT_FOUND', 'No user matches ownerUserId.');
+      const existingMerchant = await getMerchantIdForOwner(ownerUserId);
+      if (existingMerchant) {
+        throw badRequest('OWNER_ALREADY_HAS_MERCHANT', 'This user already owns a merchant.');
+      }
+
+      const merchant = await catalog.createMerchant(merchantInput);
+      await linkMerchantOwner(ownerUserId, merchant.id);
       res.status(201).json({ merchant });
     }
   );
