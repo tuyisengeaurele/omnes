@@ -66,6 +66,11 @@ const envSchema = z.object({
   OTP_REQUESTS_PER_HOUR: z.coerce.number().int().positive().default(5),
 
   PAYMENT_PROVIDER: z.enum(['mock', 'mtn_momo', 'airtel']).default('mock'),
+  // How long a payment may sit PENDING before it is treated as expired.
+  // Checked lazily wherever a payment's status is read - see
+  // modules/payment/paymentStatus.ts - rather than by a background job,
+  // since nothing else in this deployable runs on a schedule yet.
+  PAYMENT_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(180),
   SMS_PROVIDER: z.enum(['mock', 'live']).default('mock'),
   MAPS_PROVIDER: z.enum(['osm', 'mapbox', 'google']).default('osm'),
   REALTIME_TRANSPORT: z.enum(['sse', 'websocket']).default('sse'),
