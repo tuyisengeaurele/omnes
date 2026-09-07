@@ -28,6 +28,7 @@ import { createInMemoryRealtimeAdapter } from './adapters/realtime/inMemoryRealt
 import {
   createAuthService,
   createIdentityRouter,
+  createDriverRouter,
   createOtpService,
   createTokenService,
   prismaOtpStore,
@@ -46,8 +47,24 @@ import {
   createCheckoutService,
   createOrderLifecycleRouter,
   createOrderLifecycleService,
+  findOrderPickupInfo,
 } from './modules/order/index.js';
 import { createPaymentWebhookRouter, createWebhookProcessor } from './modules/payment/index.js';
+import {
+  createDispatchRouter,
+  createDispatchService,
+  nearestAvailableStrategy,
+  findCandidateLocationsInBox,
+  createOffer as createDispatchOffer,
+  findOfferById,
+  findOpenOfferForOrder,
+  findTriedDriverIds,
+  resolveOffer,
+  createAssignment,
+  findAssignmentById,
+  completeAssignment,
+  logDispatchDecision,
+} from './modules/dispatch/index.js';
 
 export interface AppDeps {
   config: Config;
@@ -110,15 +127,42 @@ export function createApp(deps: AppDeps): Express {
   });
   const webhookProcessor = createWebhookProcessor({ lifecycle: lifecycleService });
 
+  const dispatchService = createDispatchService({
+    geo: haversineGeoAdapter,
+    strategy: nearestAvailableStrategy,
+    lifecycle: lifecycleService,
+    offerTimeoutSeconds: deps.config.DISPATCH_OFFER_TIMEOUT_SECONDS,
+    initialRadiusMeters: deps.config.DISPATCH_INITIAL_RADIUS_METERS,
+    escalatedRadiusMeters: deps.config.DISPATCH_ESCALATED_RADIUS_METERS,
+    findOrderInfo: findOrderPickupInfo,
+    findCandidates: findCandidateLocationsInBox,
+    createOffer: createDispatchOffer,
+    findOfferById,
+    findOpenOfferForOrder,
+    findTriedDriverIds,
+    resolveOffer,
+    createAssignment,
+    findAssignmentById,
+    completeAssignment,
+    logDecision: logDispatchDecision,
+  });
+
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
 
   app.use('/api/auth', createIdentityRouter(authService, tokenService, deps.config));
+  app.use('/api/drivers', createDriverRouter(tokenService));
   app.use('/api/catalog', createCatalogRouter(catalogService, tokenService));
   app.use('/api/cart', createCartRouter(cartService, tokenService));
   app.use('/api/checkout', createCheckoutRouter(checkoutService, tokenService));
-  app.use('/api/orders', createOrderLifecycleRouter(lifecycleService, realtimePort, tokenService));
+  app.use(
+    '/api/orders',
+    createOrderLifecycleRouter(lifecycleService, realtimePort, tokenService, (orderId) =>
+      dispatchService.advanceDispatch(orderId).then(() => undefined)
+    )
+  );
+  app.use('/api/dispatch', createDispatchRouter(dispatchService, tokenService));
   app.use(
     '/api/payments/webhooks',
     createPaymentWebhookRouter(webhookProcessor, deps.config.PAYMENT_WEBHOOK_SECRET)
