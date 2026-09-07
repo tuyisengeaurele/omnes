@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 /**
- * Staged-content secret scan.
+ * Secret scan.
  *
- * Runs as a pre-commit hook and in CI. Reads the *staged* blob rather than the
- * working tree, so `git add` followed by an edit cannot smuggle content past it.
+ * With no flags, scans the staged blob rather than the working tree, so a
+ * `git add` followed by an edit cannot smuggle content past it. This is the
+ * mode the pre-commit hook uses.
+ *
+ * With `--all`, scans every tracked file's working-tree content instead. This
+ * is the mode CI uses, since a push has no staging area and a diff alone would
+ * miss a secret sitting in a file nobody touched this commit.
  *
  * The remote is public. A credential that reaches a commit is compromised even
  * if the commit is amended away a minute later, because the object stays
@@ -15,6 +20,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import process from 'node:process';
 
 const ALLOW_MARKER = 'omnes:allow-secret';
@@ -107,9 +113,23 @@ function stagedFiles() {
   return out.split('\n').filter(Boolean);
 }
 
+function trackedFiles() {
+  return git(['ls-files']).split('\n').filter(Boolean);
+}
+
 function stagedContent(file) {
   try {
     const buf = execFileSync('git', ['show', `:${file}`], { maxBuffer: 64 * 1024 * 1024 });
+    if (buf.includes(0)) return null; // binary
+    return buf.toString('utf8');
+  } catch {
+    return null;
+  }
+}
+
+function workingTreeContent(file) {
+  try {
+    const buf = readFileSync(file);
     if (buf.includes(0)) return null; // binary
     return buf.toString('utf8');
   } catch {
@@ -170,8 +190,9 @@ function scanFile(file, content) {
   return findings;
 }
 
-function main() {
-  const files = stagedFiles();
+function main(argv) {
+  const scanAll = argv.includes('--all');
+  const files = scanAll ? trackedFiles() : stagedFiles();
   const findings = [];
 
   for (const file of files) {
@@ -188,13 +209,14 @@ function main() {
 
     if (SKIPPED_PATHS.some((re) => re.test(file))) continue;
 
-    const content = stagedContent(file);
+    const content = scanAll ? workingTreeContent(file) : stagedContent(file);
     if (content === null) continue;
     findings.push(...scanFile(file, content));
   }
 
   if (findings.length === 0) {
-    console.log(`secret scan: clean (${files.length} staged file${files.length === 1 ? '' : 's'})`);
+    const noun = scanAll ? 'tracked file' : 'staged file';
+    console.log(`secret scan: clean (${files.length} ${noun}${files.length === 1 ? '' : 's'})`);
     return 0;
   }
 
@@ -217,4 +239,4 @@ function main() {
   return 1;
 }
 
-process.exit(main());
+process.exit(main(process.argv.slice(2)));
