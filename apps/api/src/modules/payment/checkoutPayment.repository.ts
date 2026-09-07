@@ -19,6 +19,8 @@ export interface PaymentIntentRecord {
   id: string;
   orderId: string;
   merchantId: string;
+  /** The order's vertical - carried here so a webhook handler can resolve a commission rate without a second lookup. */
+  vertical: string;
   status: string;
   amountMinor: bigint;
   currency: string;
@@ -37,7 +39,7 @@ async function loadIntent(
       amountMinor: true,
       currency: true,
       createdAt: true,
-      order: { select: { merchantId: true } },
+      order: { select: { merchantId: true, vertical: true } },
     },
   });
   if (!intent) return null;
@@ -45,6 +47,7 @@ async function loadIntent(
     id: intent.id,
     orderId: intent.orderId,
     merchantId: intent.order.merchantId,
+    vertical: intent.order.vertical,
     status: intent.status,
     amountMinor: intent.amountMinor,
     currency: intent.currency,
@@ -101,7 +104,7 @@ async function finalize(params: {
         amountMinor: true,
         currency: true,
         createdAt: true,
-        order: { select: { merchantId: true, status: true } },
+        order: { select: { merchantId: true, status: true, vertical: true } },
       },
     });
     if (!intent) return { applied: false, reason: 'NOT_FOUND' } as const;
@@ -162,6 +165,7 @@ async function finalize(params: {
         id: intent.id,
         orderId: intent.orderId,
         merchantId: intent.order.merchantId,
+        vertical: intent.order.vertical,
         status: params.newStatus,
         amountMinor: intent.amountMinor,
         currency: intent.currency,
