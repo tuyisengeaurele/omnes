@@ -1,0 +1,8 @@
+{
+  "name": "@omnes/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared shadcn/ui primitives, the Omnes theme, and brand assets used across the three frontend apps",
+  "type": "module",
+  "files": ["assets"]
+}
