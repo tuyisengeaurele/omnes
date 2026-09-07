@@ -23,3 +23,17 @@ export {
   type CheckoutOutcome,
 } from './checkout.service.js';
 export { createCheckoutRouter } from './checkout.routes.js';
+export { ORDER_TRANSITIONS, canTransition, isTerminal } from './stateMachine.js';
+export {
+  transitionOrder,
+  type TransitionOrderInput,
+  type TransitionOutcome,
+} from './lifecycle.repository.js';
+export { createOrderLifecycleService, type OrderLifecycleService } from './lifecycle.service.js';
+export { createOrderLifecycleRouter } from './lifecycle.routes.js';
+export {
+  findOrdersForCustomer,
+  findOrderDetail,
+  type OrderSummaryRow,
+  type OrderDetailRow,
+} from './order.repository.js';
