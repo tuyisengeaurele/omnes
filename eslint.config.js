@@ -203,8 +203,16 @@ export default tseslint.config(
   {
     files: ['**/*.{test,spec}.{ts,tsx}', '**/__tests__/**/*.{ts,tsx}', 'e2e/**/*.ts'],
     rules: {
+      // supertest types `res.body` as `any` by design, and reading it back
+      // (res.body.merchant.id, mapping over res.body.items, and so on) is
+      // the normal way to write an integration test against it. Annotating
+      // every call site would just be noise; this is not a general license
+      // for `any` in test code, only an acknowledgment of that one library.
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
       // A fake/mock implementing an async interface for a test double has no
       // real I/O to await; the async signature exists to satisfy the
