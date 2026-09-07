@@ -87,7 +87,18 @@ function transitionFailureError(
 export function createOrderLifecycleRouter(
   lifecycle: OrderLifecycleService,
   realtime: RealtimePort,
-  tokenService: TokenService
+  tokenService: TokenService,
+  /**
+   * Fired after an order successfully moves to READY_FOR_PICKUP - the
+   * moment dispatch has something to do. A plain callback rather than an
+   * import of the dispatch module's own types, so this file does not need
+   * to know dispatch exists at all; app.ts is the only place that wires
+   * the two together. Best-effort: dispatch also gets a chance to run the
+   * next time anything reads this order's dispatch state (see
+   * dispatch.service.ts's advanceDispatch), so a failure here delays
+   * dispatch, it does not lose the order.
+   */
+  onReadyForPickup?: (orderId: string) => Promise<void>
 ): Router {
   const router = Router();
   router.use(requireAuth('customer', tokenService));
@@ -172,6 +183,50 @@ export function createOrderLifecycleRouter(
       actorId: actor.userId,
     });
     if (!outcome.applied) throw transitionFailureError(outcome);
+
+    res.status(200).json({ status: outcome.to });
+  });
+
+  router.post('/:id/prepare', async (req, res) => {
+    const actor = req.actor;
+    if (!actor) throw unauthorized('UNAUTHENTICATED', 'Authentication required.');
+
+    const order = await loadOrderOrThrow(req.params.id);
+    await assertMerchantAccess(actor, order.merchantId);
+
+    const outcome = await lifecycle.transition({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      to: 'PREPARING',
+      actorType: 'MERCHANT',
+      actorId: actor.userId,
+    });
+    if (!outcome.applied) throw transitionFailureError(outcome);
+
+    res.status(200).json({ status: outcome.to });
+  });
+
+  router.post('/:id/ready', async (req, res) => {
+    const actor = req.actor;
+    if (!actor) throw unauthorized('UNAUTHENTICATED', 'Authentication required.');
+
+    const order = await loadOrderOrThrow(req.params.id);
+    await assertMerchantAccess(actor, order.merchantId);
+
+    const outcome = await lifecycle.transition({
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      to: 'READY_FOR_PICKUP',
+      actorType: 'MERCHANT',
+      actorId: actor.userId,
+    });
+    if (!outcome.applied) throw transitionFailureError(outcome);
+
+    if (onReadyForPickup) {
+      await onReadyForPickup(order.id).catch(() => {
+        // Best-effort trigger - see the parameter's own comment above.
+      });
+    }
 
     res.status(200).json({ status: outcome.to });
   });

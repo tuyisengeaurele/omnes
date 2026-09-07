@@ -67,6 +67,11 @@ describe('ledger', () => {
     it('posts a balanced transaction', async () => {
       const a = await trackedAccount('PLATFORM', PLATFORM_OWNER_ID, 'ESCROW');
       const b = await trackedAccount('MERCHANT', randomUUID(), 'PAYABLE');
+      // `a` is the shared platform escrow account, reused across every test
+      // in this file (and every other file that posts a real payment), so
+      // only its delta is provable here - see the idempotency test below,
+      // which documents the same thing.
+      const balanceBefore = await accountBalance(a);
 
       const result = await postLedgerTransaction({
         reference: `test:${randomUUID()}`,
@@ -79,7 +84,7 @@ describe('ledger', () => {
       });
 
       expect(result.posted).toBe(true);
-      expect(await accountBalance(a)).toBe(-1000n);
+      expect(await accountBalance(a)).toBe(balanceBefore - 1000n);
       expect(await accountBalance(b)).toBe(1000n);
     });
 

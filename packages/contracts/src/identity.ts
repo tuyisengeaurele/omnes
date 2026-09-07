@@ -6,6 +6,7 @@
 
 import { z } from 'zod';
 import { phoneE164Schema } from './primitives.js';
+import { vehicleTypeSchema } from './enums.js';
 
 /** A numeric OTP code. Length is config-driven server-side (4-10 digits), so this stays loose. */
 const otpCodeSchema = z.string().regex(/^\d{4,10}$/, 'must be a numeric code');
@@ -27,3 +28,10 @@ export const loginSchema = z.object({
   code: otpCodeSchema,
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+/** Ops-only: provisions a driver for a user who already has an account. See identity/driver.routes.ts. */
+export const provisionDriverSchema = z.object({
+  userId: z.string().uuid(),
+  vehicleType: vehicleTypeSchema,
+});
+export type ProvisionDriverInput = z.infer<typeof provisionDriverSchema>;

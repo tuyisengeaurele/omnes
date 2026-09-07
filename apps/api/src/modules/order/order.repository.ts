@@ -128,3 +128,39 @@ export async function findOrderDetail(orderId: string): Promise<OrderDetailRow |
     items: row.items,
   };
 }
+
+export interface OrderPickupInfo {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  merchantId: string;
+  pickup: { latitude: number; longitude: number };
+}
+
+/**
+ * The pickup point dispatch needs: the merchant's location, for every
+ * vertical this MVP supports. Every order requires a merchant (Order.
+ * merchantId is not nullable), including a parcel pickup, so there is no
+ * separate "no merchant" case to handle here yet.
+ */
+export async function findOrderPickupInfo(orderId: string): Promise<OrderPickupInfo | null> {
+  const row = await getDb().order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      orderNumber: true,
+      status: true,
+      merchantId: true,
+      merchant: { select: { latitude: true, longitude: true } },
+    },
+  });
+  if (!row) return null;
+
+  return {
+    id: row.id,
+    orderNumber: row.orderNumber,
+    status: row.status,
+    merchantId: row.merchantId,
+    pickup: { latitude: Number(row.merchant.latitude), longitude: Number(row.merchant.longitude) },
+  };
+}

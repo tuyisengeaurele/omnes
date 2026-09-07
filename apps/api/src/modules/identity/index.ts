@@ -9,6 +9,7 @@
 
 export { requireAuth } from './authMiddleware.js';
 export { createIdentityRouter } from './routes.js';
+export { createDriverRouter } from './driver.routes.js';
 export { createAuthService, type AuthService } from './auth.service.js';
 export { createOtpService, type OtpService } from './otp.service.js';
 export { createTokenService, type TokenService } from './token.service.js';
@@ -20,5 +21,8 @@ export {
   getRolesForUser,
   getMerchantIdForOwner,
   linkMerchantOwner,
+  getDriverProfileForUser,
+  createDriverProfile,
   type UserRecord,
+  type DriverProfileRecord,
 } from './repository.js';
