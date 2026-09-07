@@ -38,11 +38,16 @@ Requires PostgreSQL 17 already installed and running as a service.
    ```
 
    ```sql
-   CREATE ROLE omnes_app WITH LOGIN PASSWORD 'your-local-password';
+   CREATE ROLE omnes_app WITH LOGIN CREATEDB PASSWORD 'your-local-password';
    CREATE DATABASE omnes_dev OWNER omnes_app;
    CREATE DATABASE omnes_test OWNER omnes_app;
    \q
    ```
+
+   `CREATEDB` is required on this role, not just a convenience: Prisma Migrate creates and drops a
+   temporary shadow database on every `prisma migrate dev` run, to detect drift between the schema
+   file and the migration history. Without it, `migrate dev` fails with a permission error. CI uses
+   `prisma migrate deploy` instead, which does not need a shadow database or this permission.
 
 2. Copy the environment template and fill in `DATABASE_URL` with the password you just chose:
 
@@ -78,14 +83,39 @@ npm install
 ```
 
 `npm install` also wires up the project's git hooks (`core.hooksPath` points at `.githooks/`), so
-the secret scan and the style scan run on every commit from that point on.
+the secret scan and the style scan run on every commit from that point on. Installing `apps/api`
+also runs `prisma generate` automatically (its `postinstall` script), which is what produces
+`apps/api/src/generated/prisma` - a build artifact, not checked into git.
 
-Once the API workspace exists (from phase 1 onward):
+### API workspace: schema, seed data, and running the server
 
 ```bash
-npm run dev          # every workspace with a dev script, in parallel
-npm run build         # every workspace with a build script
-npm run test           # every workspace with a test script
+npm run db:migrate --workspace apps/api   # applies every migration to omnes_dev
+npm run db:seed --workspace apps/api      # Kigali city/zones, six merchants, staff users
+npm run dev --workspace apps/api          # starts the API on the port set in .env
+```
+
+### Running the API's tests
+
+The API's integration tests exercise the real Express app and the real database, against a
+separate `omnes_test` database so a test run never touches `omnes_dev` data. `vitest.setup.ts`
+loads `apps/api/.env.test` before the tests run; the Prisma CLI does not read that file on its
+own, so the one-time migration step below sets `DATABASE_URL` explicitly instead.
+
+```bash
+cp apps/api/.env.test.example apps/api/.env.test
+# fill in DATABASE_URL and the secret placeholders in apps/api/.env.test
+
+cd apps/api
+DATABASE_URL="postgresql://omnes_app:your-local-password@localhost:5432/omnes_test?schema=public" \
+  npx prisma migrate deploy
+cd ../..
+```
+
+Once `omnes_test` is migrated:
+
+```bash
+npm run test          # every workspace with a test script
 npm run lint
 npm run typecheck
 npm run verify         # style scan, format check, lint, typecheck, test, in that order
