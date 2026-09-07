@@ -25,6 +25,7 @@ env:
   JWT_ACCESS_SECRET: ci-only-jwt-access-secret-not-a-real-credential-00 # omnes:allow-secret
   CSRF_SECRET: ci-only-csrf-secret-not-a-real-credential-000000000000 # omnes:allow-secret
   OTP_PEPPER: ci-only-otp-pepper-not-a-real-credential-0000000000000 # omnes:allow-secret
+  PAYMENT_WEBHOOK_SECRET: ci-only-webhook-secret-not-a-real-credential-00000 # omnes:allow-secret
   CORS_ALLOWED_ORIGINS: http://localhost:5173
 
 jobs:
