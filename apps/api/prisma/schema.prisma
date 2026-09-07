@@ -193,3 +193,83 @@ model VerificationDoc {
   @@map("verification_docs")
 }
 
+// -----------------------------------------------------------------------------
+// Location and configuration
+// -----------------------------------------------------------------------------
+// Fee structure is a row rather than a constant, so enabling a new city is
+// configuration rather than a deployment. FR-ADM-008.
+
+enum Vertical {
+  FOOD
+  GROCERY
+  PARCEL
+}
+
+model City {
+  id              String     @id @default(uuid())
+  code            String     @unique
+  name            String
+  countryCode     String
+  currency        String
+  timezone        String
+  activeVerticals Vertical[]
+  createdAt       DateTime   @default(now())
+
+  zones        Zone[]
+  merchants    Merchant[]
+  feeSchedules FeeSchedule[]
+
+  @@map("cities")
+}
+
+model Zone {
+  id              String @id @default(uuid())
+  cityId          String
+  name            String
+  polygon         Json
+  deliveryRadiusM Int
+
+  city      City       @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  merchants Merchant[]
+
+  @@index([cityId])
+  @@map("zones")
+}
+
+model Address {
+  id        String   @id @default(uuid())
+  userId    String
+  label     String
+  latitude  Decimal  @db.Decimal(9, 6)
+  longitude Decimal  @db.Decimal(9, 6)
+  landmark  String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders        Order[]
+  parcelPickups ParcelDetails[]
+
+  @@index([userId])
+  @@index([latitude, longitude])
+  @@map("addresses")
+}
+
+// One row per city, vertical and effective date. A new row supersedes the
+// previous one rather than mutating it, which keeps historical orders priced
+// against the schedule that was actually in effect at the time.
+model FeeSchedule {
+  id            String   @id @default(uuid())
+  cityId        String
+  vertical      Vertical
+  baseFeeMinor  BigInt
+  perKmFeeMinor BigInt
+  serviceFeeBps Int
+  effectiveFrom DateTime
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@index([cityId, vertical, effectiveFrom])
+  @@map("fee_schedules")
+}
+
