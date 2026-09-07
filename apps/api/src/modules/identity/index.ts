@@ -7,4 +7,11 @@
  * boundaries/element-types rule in the root eslint config.
  */
 
-export {};
+export { requireAuth } from './authMiddleware.js';
+export { createIdentityRouter } from './routes.js';
+export { createAuthService, type AuthService } from './auth.service.js';
+export { createOtpService, type OtpService } from './otp.service.js';
+export { createTokenService, type TokenService } from './token.service.js';
+export { prismaOtpStore } from './otp.store.js';
+export { prismaRefreshTokenStore } from './token.store.js';
+export { findUserByPhone, findUserById, getRolesForUser, type UserRecord } from './repository.js';

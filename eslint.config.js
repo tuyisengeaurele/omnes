@@ -206,6 +206,10 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
+      // A fake/mock implementing an async interface for a test double has no
+      // real I/O to await; the async signature exists to satisfy the
+      // interface, not because the method suspends.
+      '@typescript-eslint/require-await': 'off',
     },
   },
 
