@@ -1,0 +1,64 @@
+# Secrets. Nothing matching these may ever reach a commit.
+# The remote is public; a leaked credential is world-readable within minutes.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+.secrets
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+dist/
+build/
+out/
+*.tsbuildinfo
+.vite/
+.turbo/
+
+# Prisma generated client (regenerated from schema.prisma)
+**/generated/prisma/
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# Editors
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+*.swp
+*.swo
+
+# OS files. desktop.ini matters here because the project sits in a OneDrive folder.
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Local database dumps and scratch files
+*.sql.bak
+*.dump
+tmp/
+.cache/
