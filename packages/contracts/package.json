@@ -1,0 +1,22 @@
+{
+  "name": "@omnes/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zod schemas shared between the API and every frontend. TypeScript types are inferred from these, not written by hand, so the contract and the server-side validation cannot drift apart.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@omnes/config": "*"
+  }
+}
