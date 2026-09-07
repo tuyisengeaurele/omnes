@@ -5,15 +5,11 @@ const PRODUCT_ID = '950a5a76-6872-4e8b-8e6d-7d9eaddb6cbc';
 
 describe('addCartItemSchema', () => {
   it('accepts a valid payload', () => {
-    expect(addCartItemSchema.safeParse({ productId: PRODUCT_ID, quantity: 2 }).success).toBe(
-      true
-    );
+    expect(addCartItemSchema.safeParse({ productId: PRODUCT_ID, quantity: 2 }).success).toBe(true);
   });
 
   it('rejects a quantity of zero', () => {
-    expect(addCartItemSchema.safeParse({ productId: PRODUCT_ID, quantity: 0 }).success).toBe(
-      false
-    );
+    expect(addCartItemSchema.safeParse({ productId: PRODUCT_ID, quantity: 0 }).success).toBe(false);
   });
 
   it('rejects a quantity above the cap', () => {
