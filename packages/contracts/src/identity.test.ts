@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { loginSchema, registerSchema, requestOtpSchema } from './identity.js';
+import {
+  loginSchema,
+  provisionDriverSchema,
+  registerSchema,
+  requestOtpSchema,
+} from './identity.js';
 
 describe('requestOtpSchema', () => {
   it('accepts a valid phone number', () => {
@@ -49,5 +54,28 @@ describe('loginSchema', () => {
 
   it('rejects a code that is too short', () => {
     expect(loginSchema.safeParse({ phoneE164: '+250780000000', code: '12' }).success).toBe(false);
+  });
+});
+
+describe('provisionDriverSchema', () => {
+  it('accepts a valid provisioning payload', () => {
+    const result = provisionDriverSchema.safeParse({
+      userId: '3b5c1f2a-1111-4a2b-9c3d-abcdefabcdef',
+      vehicleType: 'MOTO',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an invalid vehicle type', () => {
+    const result = provisionDriverSchema.safeParse({
+      userId: '3b5c1f2a-1111-4a2b-9c3d-abcdefabcdef',
+      vehicleType: 'HELICOPTER',
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects a non-uuid userId', () => {
+    const result = provisionDriverSchema.safeParse({ userId: 'not-a-uuid', vehicleType: 'MOTO' });
+    expect(result.success).toBe(false);
   });
 });

@@ -7,7 +7,7 @@
  */
 
 import { getDb } from '../../platform/db.js';
-import type { RoleName } from '@omnes/contracts';
+import type { RoleName, VehicleType } from '@omnes/contracts';
 
 export interface UserRecord {
   id: string;
@@ -125,4 +125,49 @@ export async function linkMerchantOwner(userId: string, merchantId: string): Pro
       data: { userId, role: 'MERCHANT_OWNER' },
     }),
   ]);
+}
+
+export interface DriverProfileRecord {
+  id: string;
+  userId: string;
+  vehicleType: VehicleType;
+  status: string;
+}
+
+/**
+ * The driver profile a user holds, if any. Dispatch resolves an
+ * authenticated actor's userId to this before doing anything else - every
+ * dispatch table (DriverAvailability, DispatchOffer, Assignment) keys off
+ * DriverProfile.id, not User.id.
+ */
+export async function getDriverProfileForUser(userId: string): Promise<DriverProfileRecord | null> {
+  return getDb().driverProfile.findUnique({
+    where: { userId },
+    select: { id: true, userId: true, vehicleType: true, status: true },
+  });
+}
+
+/**
+ * Provisions a driver: a DriverProfile and the DRIVER role, in one
+ * transaction. There is no self-service driver signup in this MVP - the
+ * driver app itself is explicitly out of scope (see docs/build-plan.md
+ * section 9) - so this is called from an ops-only route, the same shape as
+ * linkMerchantOwner above. status is set APPROVED directly rather than
+ * PENDING: an approval queue (build plan phase 10) does not exist yet
+ * either, and an ops user calling this endpoint has already vetted the
+ * driver outside the system, the same assumption merchant provisioning
+ * already makes.
+ */
+export async function createDriverProfile(
+  userId: string,
+  vehicleType: VehicleType
+): Promise<DriverProfileRecord> {
+  return getDb().$transaction(async (tx) => {
+    const profile = await tx.driverProfile.create({
+      data: { userId, vehicleType, status: 'APPROVED' },
+      select: { id: true, userId: true, vehicleType: true, status: true },
+    });
+    await tx.userRole.create({ data: { userId, role: 'DRIVER' } });
+    return profile;
+  });
 }
