@@ -20,8 +20,9 @@
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
 import { SignJWT, jwtVerify } from 'jose';
 import { JOSEError, JWTExpired, JWTClaimValidationFailed } from 'jose/errors';
+import type { Audience } from '../../platform/audience.js';
 
-export type Audience = 'customer' | 'merchant' | 'admin';
+export type { Audience };
 
 export interface RefreshTokenRecord {
   id: string;
