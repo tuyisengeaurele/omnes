@@ -15,6 +15,16 @@ import { paginationQuerySchema, type Money } from './primitives.js';
 // Merchant list and search
 // ---------------------------------------------------------------------------
 
+/**
+ * 'distance' only means anything with a near point given; the service falls
+ * back to 'recent' when it is requested without one. 'eta' sorts by
+ * prepTimeMinutes ascending - the merchant's own estimate, not a live
+ * traffic-aware delivery ETA, which needs a real routing engine this MVP
+ * does not have.
+ */
+export const merchantSortSchema = z.enum(['distance', 'rating', 'eta', 'recent']);
+export type MerchantSort = z.infer<typeof merchantSortSchema>;
+
 export const listMerchantsQuerySchema = paginationQuerySchema
   .extend({
     cityId: z.string().uuid(),
@@ -22,6 +32,8 @@ export const listMerchantsQuerySchema = paginationQuerySchema
     latitude: z.coerce.number().min(-90).max(90).optional(),
     longitude: z.coerce.number().min(-180).max(180).optional(),
     radiusM: z.coerce.number().positive().max(50_000).optional(),
+    minRating: z.coerce.number().min(0).max(5).optional(),
+    sortBy: merchantSortSchema.optional(),
   })
   .refine((data) => (data.latitude === undefined) === (data.longitude === undefined), {
     message: 'latitude and longitude must be provided together',
