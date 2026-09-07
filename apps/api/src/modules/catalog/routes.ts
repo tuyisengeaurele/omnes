@@ -67,6 +67,8 @@ export function createCatalogRouter(catalog: CatalogService, tokenService: Token
     const page = await catalog.listMerchants({
       cityId: query.cityId,
       ...(query.vertical ? { vertical: query.vertical } : {}),
+      ...(query.minRating !== undefined ? { minRating: query.minRating } : {}),
+      ...(query.sortBy ? { sortBy: query.sortBy } : {}),
       ...(query.latitude !== undefined ? { latitude: query.latitude } : {}),
       ...(query.longitude !== undefined ? { longitude: query.longitude } : {}),
       ...(query.radiusM !== undefined ? { radiusM: query.radiusM } : {}),
