@@ -1,0 +1,43 @@
+{
+  "name": "omnes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-vertical delivery platform for Rwanda: food, grocery and parcel on one fleet and one identity",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": "^22.13.0 || >=24.0.0",
+    "npm": ">=10.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "git config core.hooksPath .githooks || exit 0",
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:watch": "npm run test:watch --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "scan:secrets": "node scripts/check-secrets.mjs",
+    "scan:style": "node scripts/check-style.mjs --all",
+    "audit:ci": "npm audit --audit-level=high",
+    "verify": "npm run scan:style && npm run format:check && npm run lint && npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.1",
+    "eslint": "^10.10.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.12.0",
+    "prettier": "^3.9.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0"
+  }
+}

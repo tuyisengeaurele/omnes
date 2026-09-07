@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+**/generated/
+package-lock.json
+*.min.js
+*.min.css
+docs/requirements-spec.md

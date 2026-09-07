@@ -1,0 +1,29 @@
+# Normalize to LF in the repository. Development happens on Windows and CI runs
+# on Linux; without this, every file round-trips as a whole-file diff and shell
+# scripts committed from Windows arrive at CI with CRLF and fail to execute.
+* text=auto eol=lf
+
+# Scripts must keep LF regardless of local settings. A CRLF shebang line fails
+# with a bad interpreter error.
+*.sh    text eol=lf
+*.mjs   text eol=lf
+.githooks/* text eol=lf
+
+# Windows-only files keep CRLF.
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary. Never diff, never normalize.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+
+# Generated files: collapse in diffs and exclude from language statistics.
+package-lock.json  -diff linguist-generated

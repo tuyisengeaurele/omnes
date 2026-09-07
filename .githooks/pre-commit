@@ -1,0 +1,20 @@
+#!/bin/sh
+#
+# Enabled by `npm install` via the root prepare script, which points
+# core.hooksPath at this directory.
+#
+# Bypassable with `git commit --no-verify`. CI runs the same two checks on every
+# push, so a bypass is caught before it can be merged.
+
+set -e
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: node not found on PATH" >&2
+  echo "pre-commit: refusing to commit unscanned changes" >&2
+  exit 1
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+node "$ROOT/scripts/check-secrets.mjs"
+node "$ROOT/scripts/check-style.mjs"
