@@ -214,7 +214,21 @@ describe('identity routes', () => {
         .post('/api/auth/register/verify')
         .send({ phoneE164: phone, displayName: 'Test Customer', code });
 
-      return { agent, app, phone, csrfToken: res.body.csrfToken as string };
+      const cookies = res.get('Set-Cookie') ?? [];
+      const refreshCookie = cookies.find((c) => c.startsWith('omnes_rt_cust='));
+      const csrfCookie = cookies.find((c) => c.startsWith('omnes_csrf_cust='));
+      if (!refreshCookie || !csrfCookie) {
+        throw new Error('missing expected session cookie in registration response');
+      }
+
+      return {
+        agent,
+        app,
+        phone,
+        csrfToken: res.body.csrfToken as string,
+        refreshCookie,
+        csrfCookie,
+      };
     }
 
     it('allows /me with a valid session', async () => {
@@ -238,6 +252,48 @@ describe('identity routes', () => {
 
       // The rotated session still authenticates.
       await agent.get('/api/auth/me').expect(200);
+    });
+
+    it('detects reuse when a refresh token is replayed after rotation, and ends the whole session', async () => {
+      const { agent, app, csrfToken, refreshCookie, csrfCookie } = await loggedInAgent();
+
+      // Rotate once through the agent, which picks up the new cookies. The
+      // agent's jar still holds the CSRF cookie this rotation set, so its
+      // returned token stays valid for a further request through the agent.
+      const rotated = await agent
+        .post('/api/auth/refresh')
+        .set('X-CSRF-Token', csrfToken)
+        .expect(200);
+      const rotatedCsrfToken = rotated.body.csrfToken as string;
+
+      // Replay the now-superseded refresh cookie directly, bypassing the
+      // agent's jar (which has already moved on to the new one) - this is
+      // the stolen-cookie scenario the rotation design exists to catch. The
+      // matching pre-rotation CSRF cookie has to ride along too, or this
+      // request fails on CSRF before it ever reaches reuse detection.
+      const replay = await request(app)
+        .post('/api/auth/refresh')
+        .set('Cookie', [refreshCookie, csrfCookie])
+        .set('X-CSRF-Token', csrfToken)
+        .expect(401);
+      expect(replay.body.error.code).toBe('SESSION_INVALID');
+
+      // The access token issued by the legitimate rotation is still valid
+      // here: it is a stateless, self-verifying JWT within its own TTL, and
+      // revoking a refresh family cannot retroactively unsign an
+      // already-issued token. That is expected, not a gap - it is exactly
+      // why the access token TTL is short.
+      await agent.get('/api/auth/me').expect(200);
+
+      // What reuse detection actually guarantees: the family is dead, so no
+      // further refresh can succeed, even with the legitimately rotated
+      // token the agent is now holding. The session cannot outlive its
+      // current access token once this has happened.
+      const secondRefresh = await agent
+        .post('/api/auth/refresh')
+        .set('X-CSRF-Token', rotatedCsrfToken)
+        .expect(401);
+      expect(secondRefresh.body.error.code).toBe('SESSION_INVALID');
     });
 
     it('rejects a refresh request with no CSRF header', async () => {
