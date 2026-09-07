@@ -273,3 +273,144 @@ model FeeSchedule {
   @@map("fee_schedules")
 }
 
+// -----------------------------------------------------------------------------
+// Catalog
+// -----------------------------------------------------------------------------
+// Product.description is user-generated: sanitized on write, rendered as text
+// on read, never dangerouslySetInnerHTML.
+
+enum MerchantStatus {
+  DRAFT
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum PromotionType {
+  PERCENT_OFF
+  AMOUNT_OFF
+}
+
+model Merchant {
+  id              String         @id @default(uuid())
+  name            String
+  vertical        Vertical
+  cityId          String
+  zoneId          String
+  latitude        Decimal        @db.Decimal(9, 6)
+  longitude       Decimal        @db.Decimal(9, 6)
+  rating          Decimal        @default(5.0) @db.Decimal(3, 2)
+  prepTimeMinutes Int            @default(15)
+  isOpen          Boolean        @default(true)
+  status          MerchantStatus @default(DRAFT)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  city            City             @relation(fields: [cityId], references: [id])
+  zone            Zone             @relation(fields: [zoneId], references: [id])
+  merchantProfile MerchantProfile?
+  hours           MerchantHours[]
+  categories      Category[]
+  products        Product[]
+  promotions      Promotion[]
+  carts           Cart[]
+  orders          Order[]
+
+  @@index([cityId, vertical, status])
+  @@index([latitude, longitude])
+  @@map("merchants")
+}
+
+model MerchantHours {
+  id         String @id @default(uuid())
+  merchantId String
+  dayOfWeek  Int
+  opensAt    String
+  closesAt   String
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId])
+  @@map("merchant_hours")
+}
+
+model Category {
+  id         String @id @default(uuid())
+  merchantId String
+  name       String
+  sortOrder  Int    @default(0)
+
+  merchant Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@index([merchantId])
+  @@map("categories")
+}
+
+model Product {
+  id          String  @id @default(uuid())
+  merchantId  String
+  categoryId  String?
+  name        String
+  description String?
+  priceMinor  BigInt
+  currency    String
+  imageKey    String?
+  isAvailable Boolean @default(true)
+  stockCount  Int?
+
+  merchant       Merchant        @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+  category       Category?       @relation(fields: [categoryId], references: [id])
+  modifierGroups ModifierGroup[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+
+  @@index([merchantId, isAvailable])
+  @@map("products")
+}
+
+model ModifierGroup {
+  id        String  @id @default(uuid())
+  productId String
+  name      String
+  minSelect Int     @default(0)
+  maxSelect Int     @default(1)
+  required  Boolean @default(false)
+
+  product Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  options ModifierOption[]
+
+  @@index([productId])
+  @@map("modifier_groups")
+}
+
+model ModifierOption {
+  id              String @id @default(uuid())
+  groupId         String
+  name            String
+  priceDeltaMinor BigInt @default(0)
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId])
+  @@map("modifier_options")
+}
+
+model Promotion {
+  id             String        @id @default(uuid())
+  merchantId     String?
+  code           String        @unique
+  type           PromotionType
+  valueMinor     BigInt?
+  valueBps       Int?
+  startsAt       DateTime
+  endsAt         DateTime
+  maxRedemptions Int?
+
+  merchant    Merchant?         @relation(fields: [merchantId], references: [id])
+  redemptions PromoRedemption[]
+
+  @@index([merchantId])
+  @@map("promotions")
+}
+
