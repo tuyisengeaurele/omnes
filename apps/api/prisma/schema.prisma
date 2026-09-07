@@ -925,3 +925,121 @@ model PromoRedemption {
   @@map("promo_redemptions")
 }
 
+// -----------------------------------------------------------------------------
+// Notifications and ops
+// -----------------------------------------------------------------------------
+// NotificationLog stores delivery metadata only. Message bodies are never
+// logged, which is what keeps an OTP code out of the log stream by
+// construction rather than by a reviewer remembering to redact it.
+
+enum NotificationChannel {
+  PUSH
+  SMS
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum FraudSubjectType {
+  CUSTOMER
+  DRIVER
+  MERCHANT
+  ORDER
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model NotificationPref {
+  id       String                @id @default(uuid())
+  userId   String
+  category String
+  channels NotificationChannel[]
+
+  @@unique([userId, category])
+  @@map("notification_prefs")
+}
+
+model NotificationLog {
+  id          String              @id @default(uuid())
+  userId      String
+  category    String
+  channel     NotificationChannel
+  providerRef String?
+  status      NotificationStatus  @default(QUEUED)
+  sentAt      DateTime?
+  createdAt   DateTime            @default(now())
+
+  @@index([userId, createdAt])
+  @@map("notification_logs")
+}
+
+// Every ops action that touches customer, merchant, driver or money data
+// writes one row here. before and after are the full JSON snapshots of the
+// affected record, so a dispute can be reconstructed without guessing.
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String
+  actorRole  RoleName
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@map("audit_logs")
+}
+
+model SupportTicket {
+  id        String         @id @default(uuid())
+  orderId   String?
+  userId    String
+  category  String
+  priority  TicketPriority @default(NORMAL)
+  status    TicketStatus   @default(OPEN)
+  slaDueAt  DateTime?
+  createdAt DateTime       @default(now())
+
+  @@index([userId])
+  @@index([status, slaDueAt])
+  @@map("support_tickets")
+}
+
+model FraudFlag {
+  id          String           @id @default(uuid())
+  subjectType FraudSubjectType
+  subjectId   String
+  signal      String
+  severity    FraudSeverity
+  reviewedBy  String?
+  createdAt   DateTime         @default(now())
+
+  @@index([subjectType, subjectId])
+  @@map("fraud_flags")
+}
