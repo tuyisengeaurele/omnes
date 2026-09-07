@@ -27,7 +27,13 @@ import {
   prismaOtpStore,
   prismaRefreshTokenStore,
 } from './modules/identity/index.js';
-import { createCatalogRouter, createCatalogService } from './modules/catalog/index.js';
+import {
+  createCatalogRouter,
+  createCatalogService,
+  findMerchantById,
+  findProductById,
+} from './modules/catalog/index.js';
+import { createCartRouter, createCartService } from './modules/order/index.js';
 
 export interface AppDeps {
   config: Config;
@@ -69,6 +75,7 @@ export function createApp(deps: AppDeps): Express {
   });
 
   const catalogService = createCatalogService(haversineGeoAdapter);
+  const cartService = createCartService({ findProductById, findMerchantById });
 
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
@@ -76,6 +83,7 @@ export function createApp(deps: AppDeps): Express {
 
   app.use('/api/auth', createIdentityRouter(authService, tokenService, deps.config));
   app.use('/api/catalog', createCatalogRouter(catalogService, tokenService));
+  app.use('/api/cart', createCartRouter(cartService, tokenService));
 
   app.use(notFoundHandler);
   app.use(errorHandler);
