@@ -713,3 +713,215 @@ model DispatchDecision {
   @@map("dispatch_decisions")
 }
 
+// -----------------------------------------------------------------------------
+// Payments
+// -----------------------------------------------------------------------------
+// Double-entry, append-only ledger. Every money movement writes balanced
+// debit and credit LedgerEntry rows under one LedgerTxn. No row is ever
+// updated or deleted; corrections are reversing entries. A database
+// constraint (added in the payments migration) enforces that the entries in
+// a transaction sum to zero.
+//
+// Wallet balance is derived from the ledger at query time, never stored in a
+// mutable column. A stored balance and a ledger will disagree eventually, and
+// then someone has to decide which one is lying.
+
+enum PaymentMethod {
+  MTN_MOMO
+  AIRTEL
+  CARD
+  CASH
+  WALLET
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum LedgerOwnerType {
+  PLATFORM
+  MERCHANT
+  DRIVER
+  CUSTOMER
+}
+
+enum LedgerAccountKind {
+  REVENUE
+  PAYABLE
+  COMMISSION
+  WALLET
+  ESCROW
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PayeeType {
+  MERCHANT
+  DRIVER
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum RefundDestination {
+  ORIGINAL
+  WALLET
+}
+
+model PaymentIntent {
+  id             String        @id @default(uuid())
+  orderId        String
+  method         PaymentMethod
+  amountMinor    BigInt
+  currency       String
+  status         PaymentStatus @default(PENDING)
+  providerRef    String?
+  idempotencyKey String        @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  order    Order            @relation(fields: [orderId], references: [id])
+  attempts PaymentAttempt[]
+
+  @@index([orderId])
+  @@map("payment_intents")
+}
+
+model PaymentAttempt {
+  id              String        @id @default(uuid())
+  intentId        String
+  attemptNo       Int
+  status          PaymentStatus
+  providerCode    String?
+  providerMessage String?
+  rawResponse     Json?
+  createdAt       DateTime      @default(now())
+
+  intent PaymentIntent @relation(fields: [intentId], references: [id], onDelete: Cascade)
+
+  @@index([intentId])
+  @@map("payment_attempts")
+}
+
+model LedgerAccount {
+  id        String            @id @default(uuid())
+  ownerType LedgerOwnerType
+  ownerId   String
+  kind      LedgerAccountKind
+  currency  String
+  createdAt DateTime          @default(now())
+
+  entries LedgerEntry[]
+
+  @@unique([ownerType, ownerId, kind, currency])
+  @@map("ledger_accounts")
+}
+
+// reference is the idempotency key for the write that created this
+// transaction, so replaying a webhook or a retried request cannot post the
+// same movement twice.
+model LedgerTxn {
+  id         String   @id @default(uuid())
+  reference  String   @unique
+  kind       String
+  occurredAt DateTime @default(now())
+  memo       String?
+
+  entries LedgerEntry[]
+
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id          String          @id @default(uuid())
+  txnId       String
+  accountId   String
+  direction   LedgerDirection
+  amountMinor BigInt
+  currency    String
+
+  txn     LedgerTxn     @relation(fields: [txnId], references: [id], onDelete: Cascade)
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, txnId])
+  @@map("ledger_entries")
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    String
+  currency  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, currency])
+  @@map("wallets")
+}
+
+model CommissionRule {
+  id            String    @id @default(uuid())
+  scope         String
+  merchantId    String?
+  vertical      Vertical?
+  rateBps       Int
+  effectiveFrom DateTime
+
+  @@index([merchantId])
+  @@map("commission_rules")
+}
+
+model Payout {
+  id              String       @id @default(uuid())
+  payeeType       PayeeType
+  payeeId         String
+  periodStart     DateTime
+  periodEnd       DateTime
+  grossMinor      BigInt
+  commissionMinor BigInt
+  netMinor        BigInt
+  status          PayoutStatus @default(PENDING)
+  providerRef     String?
+  createdAt       DateTime     @default(now())
+
+  @@index([payeeType, payeeId, periodStart])
+  @@map("payouts")
+}
+
+model Refund {
+  id          String            @id @default(uuid())
+  orderId     String
+  amountMinor BigInt
+  destination RefundDestination
+  approvedBy  String
+  createdAt   DateTime          @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("refunds")
+}
+
+model PromoRedemption {
+  id          String   @id @default(uuid())
+  promotionId String
+  userId      String
+  orderId     String
+  createdAt   DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id])
+  order     Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([promotionId, userId])
+  @@map("promo_redemptions")
+}
+
