@@ -34,6 +34,8 @@ export { createOrderLifecycleRouter } from './lifecycle.routes.js';
 export {
   findOrdersForCustomer,
   findOrderDetail,
+  findOrderPickupInfo,
   type OrderSummaryRow,
   type OrderDetailRow,
+  type OrderPickupInfo,
 } from './order.repository.js';
