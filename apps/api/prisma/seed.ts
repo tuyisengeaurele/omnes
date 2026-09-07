@@ -76,7 +76,11 @@ async function seedCity() {
 }
 
 async function seedStaffUsers() {
-  const staff: Array<{ phone: string; name: string; role: 'OPS' | 'SUPPORT' | 'FINANCE' | 'SUPER_ADMIN' }> = [
+  const staff: Array<{
+    phone: string;
+    name: string;
+    role: 'OPS' | 'SUPPORT' | 'FINANCE' | 'SUPER_ADMIN';
+  }> = [
     { phone: '+250780000001', name: 'Ops Admin', role: 'OPS' },
     { phone: '+250780000002', name: 'Support Agent', role: 'SUPPORT' },
     { phone: '+250780000003', name: 'Finance Officer', role: 'FINANCE' },
@@ -326,7 +330,7 @@ async function seedMerchants(cityId: string, zoneIds: string[]) {
 
       await prisma.product.createMany({
         data: cat.items.map((item) => ({
-          merchantId: merchant!.id,
+          merchantId: merchant.id,
           categoryId: category.id,
           name: item.name,
           priceMinor: item.priceMinor,
