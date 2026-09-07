@@ -628,3 +628,88 @@ model ParcelDetails {
   @@map("parcel_details")
 }
 
+// -----------------------------------------------------------------------------
+// Dispatch
+// -----------------------------------------------------------------------------
+// DispatchDecision records every offer, accept, decline and timeout from the
+// first day. FR-DISP-005, NFR-DATA-001: the training data for the real
+// optimization engine has to exist before the engine does.
+
+enum DispatchOutcome {
+  ACCEPTED
+  DECLINED
+  TIMEOUT
+}
+
+model DriverAvailability {
+  id            String      @id @default(uuid())
+  driverId      String      @unique
+  isOnline      Boolean     @default(false)
+  vehicleType   VehicleType
+  currentZoneId String?
+  lastSeenAt    DateTime    @default(now())
+
+  driver DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@map("driver_availability")
+}
+
+model DriverLocation {
+  id         String   @id @default(uuid())
+  driverId   String
+  latitude   Decimal  @db.Decimal(9, 6)
+  longitude  Decimal  @db.Decimal(9, 6)
+  accuracyM  Decimal  @db.Decimal(6, 2)
+  recordedAt DateTime @default(now())
+
+  driver DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, recordedAt])
+  @@index([latitude, longitude])
+  @@map("driver_locations")
+}
+
+model DispatchOffer {
+  id        String           @id @default(uuid())
+  orderId   String
+  driverId  String
+  offeredAt DateTime         @default(now())
+  expiresAt DateTime
+  outcome   DispatchOutcome?
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver DriverProfile @relation(fields: [driverId], references: [id])
+
+  @@index([orderId, offeredAt])
+  @@map("dispatch_offers")
+}
+
+model Assignment {
+  id          String    @id @default(uuid())
+  orderId     String    @unique
+  driverId    String
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+  batchId     String?
+
+  order  Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driver DriverProfile @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+  @@map("assignments")
+}
+
+model DispatchDecision {
+  id             String   @id @default(uuid())
+  orderId        String
+  strategy       String
+  candidateCount Int
+  chosenDriverId String?
+  latencyMs      Int
+  payload        Json
+  createdAt      DateTime @default(now())
+
+  @@index([orderId])
+  @@map("dispatch_decisions")
+}
+
