@@ -28,5 +28,9 @@ export {
   type PaymentIntentRecord,
   type ApplyOutcome,
 } from './checkoutPayment.repository.js';
-export { processPaymentWebhook, type ProcessWebhookResult } from './webhookProcessor.js';
+export {
+  createWebhookProcessor,
+  type WebhookProcessor,
+  type ProcessWebhookResult,
+} from './webhookProcessor.js';
 export { createPaymentWebhookRouter } from './webhook.routes.js';

@@ -1,6 +1,6 @@
 # Omnes MVP Build Plan
 
-**Status:** approved 2026-09-07. Phase 0 complete. Phase 1 complete. Phase 2 complete. Phase 3 complete. Phase 4 complete. Phase 5 complete.
+**Status:** approved 2026-09-07. Phase 0 complete. Phase 1 complete. Phase 2 complete. Phase 3 complete. Phase 4 complete. Phase 5 complete. Phase 6 complete.
 **Spec:** [`docs/requirements-spec.md`](./requirements-spec.md), version 1.1.
 **Scope of this build:** customer web, merchant web, admin web, API, database schema. Deferrals are listed in section 7.
 

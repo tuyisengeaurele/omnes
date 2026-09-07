@@ -4,3 +4,4 @@ export * from './identity.js';
 export * from './catalog.js';
 export * from './cart.js';
 export * from './checkout.js';
+export * from './order.js';

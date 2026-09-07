@@ -21,6 +21,10 @@ import { mockSmsAdapter } from './adapters/sms/mockAdapter.js';
 import { haversineGeoAdapter } from './adapters/geo/haversineAdapter.js';
 import type { PaymentPort } from './adapters/payment/index.js';
 import { mockMomoAdapter } from './adapters/payment/mockMomoAdapter.js';
+import type { NotificationPort } from './adapters/notification/index.js';
+import { createLoggingNotificationAdapter } from './adapters/notification/loggingAdapter.js';
+import type { RealtimePort } from './adapters/realtime/index.js';
+import { createInMemoryRealtimeAdapter } from './adapters/realtime/inMemoryRealtimeAdapter.js';
 import {
   createAuthService,
   createIdentityRouter,
@@ -40,8 +44,10 @@ import {
   createCartService,
   createCheckoutRouter,
   createCheckoutService,
+  createOrderLifecycleRouter,
+  createOrderLifecycleService,
 } from './modules/order/index.js';
-import { createPaymentWebhookRouter } from './modules/payment/index.js';
+import { createPaymentWebhookRouter, createWebhookProcessor } from './modules/payment/index.js';
 
 export interface AppDeps {
   config: Config;
@@ -50,6 +56,10 @@ export interface AppDeps {
   smsPort?: SmsPort;
   /** Defaults to the mock adapter. Tests substitute a spy to force specific outcomes. */
   paymentPort?: PaymentPort;
+  /** Defaults to the logging adapter. Tests substitute a spy to capture what was sent. */
+  notificationPort?: NotificationPort;
+  /** Defaults to the in-memory adapter. Tests substitute a spy to capture published events. */
+  realtimePort?: RealtimePort;
 }
 
 export function createApp(deps: AppDeps): Express {
@@ -93,6 +103,13 @@ export function createApp(deps: AppDeps): Express {
     payment: deps.paymentPort ?? mockMomoAdapter,
   });
 
+  const realtimePort = deps.realtimePort ?? createInMemoryRealtimeAdapter();
+  const lifecycleService = createOrderLifecycleService({
+    realtime: realtimePort,
+    notification: deps.notificationPort ?? createLoggingNotificationAdapter(deps.logger),
+  });
+  const webhookProcessor = createWebhookProcessor({ lifecycle: lifecycleService });
+
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok' });
   });
@@ -101,7 +118,11 @@ export function createApp(deps: AppDeps): Express {
   app.use('/api/catalog', createCatalogRouter(catalogService, tokenService));
   app.use('/api/cart', createCartRouter(cartService, tokenService));
   app.use('/api/checkout', createCheckoutRouter(checkoutService, tokenService));
-  app.use('/api/payments/webhooks', createPaymentWebhookRouter(deps.config.PAYMENT_WEBHOOK_SECRET));
+  app.use('/api/orders', createOrderLifecycleRouter(lifecycleService, realtimePort, tokenService));
+  app.use(
+    '/api/payments/webhooks',
+    createPaymentWebhookRouter(webhookProcessor, deps.config.PAYMENT_WEBHOOK_SECRET)
+  );
 
   app.use(notFoundHandler);
   app.use(errorHandler);
