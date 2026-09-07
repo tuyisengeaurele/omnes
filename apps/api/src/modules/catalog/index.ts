@@ -15,3 +15,4 @@ export {
   type ProductRow,
   type MerchantRow,
 } from './repository.js';
+export { assertMerchantAccess } from './ownership.js';
